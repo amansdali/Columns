@@ -404,6 +404,7 @@ game_loop:
         beq $v1, 0x64, respond_to_d
         beq $v1, 0x77, respond_to_w
         beq $v1, 0x73, respond_to_s
+        beq $v1, 0x71, respond_to_q
         b end_key_input_handling
         respond_to_a:   # move left
             lbu $t5, curr_x     # get current x
@@ -417,13 +418,14 @@ game_loop:
             b end_key_input_handling
         respond_to_w:   # shuffle/shift gems
             # implement shuffling
-            j exit
             b end_key_input_handling
         respond_to_s:   # move down
             lbu $t5, curr_y     # get current y
             addi $t5, $t5, 1   # move it down
             sb $t5, curr_y      # save new y to curr_y
             b end_key_input_handling
+        respond_to_q:   # quit
+            j exit
     end_key_input_handling:
     # 2a. Check for collisions
 	# 2b. Update locations (capsules)
