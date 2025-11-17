@@ -65,8 +65,11 @@ grid:   # the 6x13 grid representing the playing field, storing the colour in ea
 main:
     # Initialize the game
     lw $t0, ADDR_DSPL       # $t0 = base address for display
+
+    li $t1, 15
+    sb $t1, curr_x
     
-    jal draw_gems
+    jal draw_skydiver
     jal draw_background
     jal game_loop
     
@@ -262,7 +265,8 @@ draw_skydiver:
     li $t4, 0
     li $t5, 3
     
-    lw $t6, 
+    #lw $t6, 
+    
     
     draw_gems_loop_start:
     beq $t4, $t5, draw_gems_loop_end
@@ -280,9 +284,53 @@ draw_skydiver:
         addi $sp, $sp, 4                # move the stack pointer to the top stack element
         
         jr $ra
+     
+shift_left:
+    addi $a0, $a0, -1
+    lw $a2, GREEN
+    jal draw_pixel
+    jr $ra
+    
+    
+check_keyboard:
+    li $t4, 0xffff0000       # load keyboard "key pressed" boolean pointer
+    lw $t1, 0($t4)           # value of t0. 1 = key pressed
+    beq $t1, $zero, end
+    
+    li   $t3, 'a'           
+    beq  $t2, $t3, move_left # check if keyboard press is a
 
+    li   $t3, 'd'
+    beq  $t2, $t3, move_right
+
+    li   $t3, 'w'
+    beq  $t2, $t3, shuffle
+
+    li   $t3, 's'
+    beq  $t2, $t3, soft_drop
+
+    li   $t3, 'q'
+    beq  $t2, $t3, quit_game
+    
+    
+    move_left:
+    jal shift_left
+    j end
+    
+    move_right:
+    shuffle:
+    soft_drop:
+    quit_game: 
+    
+    end: 
+    jr $ra
+    
 game_loop:
     # 1a. Check if key has been pressed
+    jal check_keyboard
+    
+    
+    
     # 1b. Check which key has been pressed
     # 2a. Check for collisions
 	# 2b. Update locations (capsules)
