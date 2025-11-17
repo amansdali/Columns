@@ -65,9 +65,6 @@ curr_y: # the y position of the player in the 6x13 grid
 main:
     # Initialize the game
     lw $t0, ADDR_DSPL       # $t0 = base address for display
-
-    li $t1, 15
-    sb $t1, curr_x
     
     jal generate_gems
     jal draw_skydiver
