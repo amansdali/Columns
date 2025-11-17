@@ -46,14 +46,14 @@ BLACK:
 ##############################################################################
 # Mutable Data
 ##############################################################################
+curr_gem_clrs: # the colours of the current gems, top to bottom
+    .space 12
+grid:   # the 6x13 grid representing the playing field, storing the colour in each position on the grid
+    .space 312
 curr_x: # the x position of the player in the 6x13 grid
     .byte 0x02
 curr_y: # the y position of the player in the 6x13 grid
     .byte 0x00
-curr_gem_clrs: # the colours of the current gems, top to bottom
-    .space 24
-grid:   # the 6x13 grid representing the playing field, storing the colour in each position on the grid
-    .space 312
 
 ##############################################################################
 # Code
@@ -69,6 +69,7 @@ main:
     li $t1, 15
     sb $t1, curr_x
     
+    jal generate_gems
     jal draw_skydiver
     jal draw_background
     jal game_loop
@@ -84,23 +85,24 @@ main:
 # $t0 = the top left corner of the bitmap display
 # $t1 = the location of the pixel
 draw_pixel:
-sll $a0, $a0, 3         # multiply the X coordinate by 8 to get the horizontal offset
-add $t1, $t0, $a0       # add this horizontal offset to $t0, store the result in $t1
-sll $a1, $a1, 9         # multiply the Y coordinate by 512 to get the vertical offset
-add $t1, $t1, $a1       # add this vertical offset to $t1
-
-sw $a2, 0( $t1 )        # paint the pixel the colour
-
-addi $t1, $t1, 4     # add 4 horizontal offset
-sw $a2, 0( $t1 )        # paint the pixel the colour
-
-addi $t1, $t1, 256     # add 256 vertical offset
-sw $a2, 0( $t1 )        # paint the pixel the colour
-
-addi $t1, $t1, -4     # add -4 horizontal offset
-sw $a2, 0( $t1 )        # paint the pixel the colour
-
-jr $ra                  # return to the calling program.
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    sll $a0, $a0, 3         # multiply the X coordinate by 8 to get the horizontal offset
+    add $t1, $t0, $a0       # add this horizontal offset to $t0, store the result in $t1
+    sll $a1, $a1, 9         # multiply the Y coordinate by 512 to get the vertical offset
+    add $t1, $t1, $a1       # add this vertical offset to $t1
+    
+    sw $a2, 0( $t1 )        # paint the pixel the colour
+    
+    addi $t1, $t1, 4        # add 4 horizontal offset
+    sw $a2, 0( $t1 )        # paint the pixel the colour
+    
+    addi $t1, $t1, 256      # add 256 vertical offset
+    sw $a2, 0( $t1 )        # paint the pixel the colour
+    
+    addi $t1, $t1, -4       # add -4 horizontal offset
+    sw $a2, 0( $t1 )        # paint the pixel the colour
+    
+    jr $ra                  # return to the calling program.
 
 ##  The draw_background function
 ##  - Draws the background hardcoded
@@ -262,21 +264,28 @@ draw_skydiver:
     addi $sp, $sp, -4               # move the stack pointer to an empty location
     sw $ra, 0($sp)                  # push $ra onto the stack
     
-    li $t4, 0
-    li $t5, 3
+    li $t4, 0   # i
+    li $t5, 3   # i+3 (for the loop)
     
-    #lw $t6, 
+    lbu $t6, curr_x
+    lbu $t7, curr_y
+    la $t8, curr_gem_clrs
     
-    
+    # draw each gem
     draw_gems_loop_start:
     beq $t4, $t5, draw_gems_loop_end
+        sll $t1, $t4, 2     # offset is index*4
         # draw gem
-        addi $a0, $zero, 15     # set X coordinate to 15
-        addi $a1, $t4, 9        # set Y coordinate to 9 + $t4
-        add $a2, $zero, $t1     # set colour
+        addi $a0, $t6, 13       # set X coordinate
+        addi $a1, $t7, 9        # set Y coordinate
+        
+        add $t2, $t8, $t1       # address of the colour to access (base address + offset)
+        lw $t9, 0($t2)          # load the colour
+        add $a2, $zero, $t9     # set colour
         jal draw_pixel          # call the draw pixel_function.
 
         addi $t4, $t4, 1
+        addi $t7, $t7, 1
         j draw_gems_loop_start
     draw_gems_loop_end:
         # recover from stack
@@ -308,10 +317,9 @@ check_keyboard:
 
     li   $t3, 's'
     beq  $t2, $t3, soft_drop
-
+    
     li   $t3, 'q'
     beq  $t2, $t3, quit_game
-    
     
     move_left:
     jal shift_left
@@ -324,23 +332,130 @@ check_keyboard:
     
     end: 
     jr $ra
+
+# the clear grid function that clears the 6x13 playing field
+clear_grid:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
     
+    li $t1, 13  # start x coord (at top left corner)
+    li $t3, 19  # end x coord exclusive
+    li $t4, 22   # end y coord exclusive
+    
+    lw $t5, BLACK # load black colour
+    add $a2, $zero, $t5     # set colour to black
+    
+    clear_grid_loop_x_start:
+        beq $t1, $t3, clear_grid_loop_x_end
+        li $t2, 9   # start y coord
+        clear_grid_loop_y_start:
+            beq $t2, $t4, clear_grid_loop_y_end
+            add $a0, $t1, $zero     # set X coordinate
+            add $a1, $t2, $zero     # set Y coordinate
+            
+            # stack stuff
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t1, 0($sp)                  # push $t1 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t2, 0($sp)                  # push $t2 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t3, 0($sp)                  # push $t3 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t4, 0($sp)                  # push $t4 onto the stack
+            
+            jal draw_pixel
+            
+            # unstack stuff
+            lw $t4, 0($sp)                  # pop $t4 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t3, 0($sp)                  # pop $t3 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t2, 0($sp)                  # pop $t2 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t1, 0($sp)                  # pop $t1 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            
+            addi $t2, $t2, 1
+            j clear_grid_loop_y_start
+        clear_grid_loop_y_end:
+            addi $t1, $t1, 1
+            j clear_grid_loop_x_start
+    clear_grid_loop_x_end:
+    
+    # recover from stack
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    
+    jr $ra
+
+# game loop
 game_loop:
     # 1a. Check if key has been pressed
-    jal check_keyboard
-    
-    
+    jal is_key_pressed
+    beq $v1, 1, if_keyboard_input
+    b end_key_input_handling
+
+    # jal check_keyboard
     
     # 1b. Check which key has been pressed
+    if_keyboard_input:
+        jal keyboard_input
+        li $v0, 1 # ask system to print $a0
+        syscall
+        beq $v1, 0x61, respond_to_a
+        beq $v1, 0x64, respond_to_d
+        beq $v1, 0x77, respond_to_w
+        beq $v1, 0x73, respond_to_s
+        b end_key_input_handling
+        respond_to_a:   # move left
+            lbu $t5, curr_x     # get current x
+            addi $t5, $t5, -1   # move it left
+            sb $t5, curr_x      # save new x to curr_x
+            b end_key_input_handling
+        respond_to_d:   # move right
+            lbu $t5, curr_x     # get current x
+            addi $t5, $t5,  1   # move it right
+            sb $t5, curr_x      # save new x to curr_x
+            b end_key_input_handling
+        respond_to_w:   # shuffle/shift gems
+            # implement shuffling
+            j exit
+            b end_key_input_handling
+        respond_to_s:   # move down
+            lbu $t5, curr_y     # get current y
+            addi $t5, $t5, 1   # move it down
+            sb $t5, curr_y      # save new y to curr_y
+            b end_key_input_handling
+    end_key_input_handling:
     # 2a. Check for collisions
 	# 2b. Update locations (capsules)
 	# 3. Draw the screen
+	jal clear_grid
+	jal draw_skydiver
 	# 4. Sleep
+	jal sleep
 
     # 5. Go back to Step 1
     j game_loop
 
-    # Generate a random integer
+# check for and handle keyboard input
+# $v1 return value: 1 if key has been pressed, 0 otherwise
+is_key_pressed:
+    lw $t1, ADDR_KBRD   # get address of keyboard input
+    lw $t2, 0($t1)      # load first word from keyboard
+    add $v1, $t2, $zero # return this value
+    jr $ra
+    
+# get the key that has been pressed
+# $v1 return value: the value of the key that has been pressed as a hex representation of its ascii code
+keyboard_input:
+    lw $t1, ADDR_KBRD   # get address of keyboard input
+    lw $t2, 4($t1)      # load second word from keyboard
+    add $v1, $t2, $zero # return this value
+    jr $ra
+    
+# Generate a random integer
 rand_num:
     li $v0, 42              # command for random number generation with a maximum
     li $a0, 0               # random number generator ID
@@ -348,14 +463,14 @@ rand_num:
     syscall                 # value is in a0
     jr $ra
 
-    # Sleep
+# Sleep
 sleep:
     li $v0, 32              # command for sleep
-    li $a0, 1000            # number of milliseconds (1000 = 1 second)
+    li $a0, 10              # number of milliseconds (1000 = 1 second)
     syscall
     jr $ra
 
-    # Terminate program gracefully
+# Terminate program gracefully
 exit:
     li $v0, 10              # terminate the program gracefully
     syscall
