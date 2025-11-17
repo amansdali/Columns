@@ -65,6 +65,9 @@ curr_y: # the y position of the player in the 6x13 grid
 main:
     # Initialize the game
     lw $t0, ADDR_DSPL       # $t0 = base address for display
+
+    li $t1, 15
+    sb $t1, curr_x
     
     jal generate_gems
     jal draw_skydiver
@@ -290,6 +293,45 @@ draw_skydiver:
         addi $sp, $sp, 4                # move the stack pointer to the top stack element
         
         jr $ra
+     
+shift_left:
+    addi $a0, $a0, -1
+    lw $a2, GREEN
+    jal draw_pixel
+    jr $ra
+    
+    
+check_keyboard:
+    li $t4, 0xffff0000       # load keyboard "key pressed" boolean pointer
+    lw $t1, 0($t4)           # value of t0. 1 = key pressed
+    beq $t1, $zero, end
+    
+    li   $t3, 'a'           
+    beq  $t2, $t3, move_left # check if keyboard press is a
+
+    li   $t3, 'd'
+    beq  $t2, $t3, move_right
+
+    li   $t3, 'w'
+    beq  $t2, $t3, shuffle
+
+    li   $t3, 's'
+    beq  $t2, $t3, soft_drop
+    
+    li   $t3, 'q'
+    beq  $t2, $t3, quit_game
+    
+    move_left:
+    jal shift_left
+    j end
+    
+    move_right:
+    shuffle:
+    soft_drop:
+    quit_game: 
+    
+    end: 
+    jr $ra
 
 # the clear grid function that clears the 6x13 playing field
 clear_grid:
@@ -353,6 +395,9 @@ game_loop:
     jal is_key_pressed
     beq $v1, 1, if_keyboard_input
     b end_key_input_handling
+
+    # jal check_keyboard
+    
     # 1b. Check which key has been pressed
     if_keyboard_input:
         jal keyboard_input
