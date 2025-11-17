@@ -417,7 +417,7 @@ game_loop:
             sb $t5, curr_x      # save new x to curr_x
             b end_key_input_handling
         respond_to_w:   # shuffle/shift gems
-            # implement shuffling
+            jal shift_gems
             b end_key_input_handling
         respond_to_s:   # move down
             lbu $t5, curr_y     # get current y
@@ -454,6 +454,17 @@ keyboard_input:
     add $v1, $t2, $zero # return this value
     jr $ra
     
+# shift/rotate gems
+shift_gems:
+    la $t9, curr_gem_clrs
+    lw $t1, 0($t9)      # first gem colour
+    lw $t2, 4($t9)      # second gem colour
+    lw $t3, 8($t9)      # third gem colour
+    sw $t3, 0($t9)      # set first gem's colour as the bottom colour
+    sw $t1, 4($t9)      # set second gem's colour as the top colour
+    sw $t2, 8($t9)      # set thrid gem's colour as the middle colour
+    jr $ra
+
 # Generate a random integer
 rand_num:
     li $v0, 42              # command for random number generation with a maximum
