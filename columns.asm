@@ -10,8 +10,8 @@
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       256
 # - Unit height in pixels:      256
-# - Display width in pixels:    8
-# - Display height in pixels:   8
+# - Display width in pixels:    4
+# - Display height in pixels:   4
 # - Base Address for Display:   0x10008000 ($gp)
 ##############################################################################
 
@@ -44,6 +44,9 @@ GRAY:
 ##############################################################################
 # Mutable Data
 ##############################################################################
+#curr_x:
+
+
 
 ##############################################################################
 # Code
@@ -70,11 +73,20 @@ main:
 # $t0 = the top left corner of the bitmap display
 # $t1 = the location of the pixel
 draw_pixel:
-sll $a0, $a0, 2         # multiply the X coordinate by 4 to get the horizontal offset
+sll $a0, $a0, 3         # multiply the X coordinate by 8 to get the horizontal offset
 add $t1, $t0, $a0       # add this horizontal offset to $t0, store the result in $t1
-sll $a1, $a1, 7         # multiply the Y coordinate by 128 to get the vertical offset
+sll $a1, $a1, 9         # multiply the Y coordinate by 512 to get the vertical offset
 add $t1, $t1, $a1       # add this vertical offset to $t1
 
+sw $a2, 0( $t1 )        # paint the pixel the colour
+
+addi $t1, $t1, 4     # add 4 horizontal offset
+sw $a2, 0( $t1 )        # paint the pixel the colour
+
+addi $t1, $t1, 256     # add 256 vertical offset
+sw $a2, 0( $t1 )        # paint the pixel the colour
+
+addi $t1, $t1, -4     # add -4 horizontal offset
 sw $a2, 0( $t1 )        # paint the pixel the colour
 
 jr $ra                  # return to the calling program.
