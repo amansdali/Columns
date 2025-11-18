@@ -566,14 +566,27 @@ game_loop:
             b end_key_input_handling
         respond_to_s:   # move down
             lbu $t5, curr_y     # get current y
-            addi $t5, $t5, 1   # move it down
-            sb $t5, curr_y      # save new y to curr_y
+            
+            addi $t6, $t5, 3   # temporary check value
+            addi $t4, $t5, 1   #displacement value 
+            add $a1, $zero, $t6
+            lbu $a0, curr_x
+            addi $a0, $a0 + 13
+            addi $a1, $a1 + 9
+            jal convert_pixel
+            add $t6, $zero, $v0 # return value of converted pixel
+            lw $t5, 0($t6)      # get colour from memory
+            lw $t6, BLACK   
+            beq $t5, $t6, allow3
+            b end_key_input_handling
+            
+            allow3:
+            sb $t4, curr_y
             b end_key_input_handling
         respond_to_q:   # quit
             j exit
     end_key_input_handling:
     
-    # 2a. Check for collisions
 	# 2b. Update locations (capsules)
 	# 3. Draw the screen
 	jal clear_grid
