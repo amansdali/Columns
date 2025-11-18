@@ -206,55 +206,57 @@ darken_colour:
 # $a2 = colour to lighten
 # $v1 = lightened colour
 lighten_colour:
-  addi $sp, $sp, -20
-    sw   $t0, 16($sp)
-    sw   $t2, 12($sp)
-    sw   $t3, 8($sp)
-    sw   $t4, 4($sp)
-    sw   $t6, 0($sp)
+  addi $sp, $sp, -24
+    sw $t7, 20($sp)
+    sw $t0, 16($sp)
+    sw $t2, 12($sp)
+    sw $t3, 8($sp)
+    sw $t4, 4($sp)
+    sw $t6, 0($sp)
+
     
     addi $t6, $a2, 0   
     srl  $t6, $t6, 16           #shifted bits untilonly each colouris isolated (red)
+    andi $t6, $t6, 0xff
     addi $t2, $a2, 0   
     srl  $t2, $t2, 8            #green     
-    addi $t3, $a2, 0
+    andi $t2, $t2, 0xff
+    andi $t3, $a2, 0xff
     
     li $t4, 0x0000ff            #maximum value
-    addi $t6, $t6, 0x33
-    addi $t2, $t2, 0x33
-    addi $t3, $t3, 0x33
+    li $t7, 0x1
+    addi $t6, $t6 0x66
+    add $t2, $t2, 0x66
+    add $t3, $t3, 0x67
     
-    slt $t0, $t6, $t4       # t0 = 1 if t1 < t4
-    beq  $t0, $zero, limit  # limit to max 0xff
+    slt $t0, $t6, $t4       # t0 = 1 if t6 < t4
+    beq  $t0, $t7, nolimit  
+    li $t6, 0xff            # limit to max
+    nolimit:
+    
      slt $t0, $t2, $t4       # t0 = 1 if t1 < t4
-    beq  $t0, $zero, limit1  # limit to max 0xff
-     slt $t0, $t3, $t4       # t0 = 1 if t1 < t4
-    beq  $t0, $zero, limit2  # limit to max 0xff
-    
-    j done                   # skip 
-    limit:
-        li $t6, 0xff          # limit to max
-        j done
-    limit1:
-        li $t2, 0xff
-        j done
-    limit2:
-        li $t3, 0xff
-        j done
-    done:
+    beq  $t0, $t7, nolimit1  # limit to max 0xff
+    li $t2, 0xff
+    nolimit1:
+    slt $t0, $t3, $t4       # t0 = 1 if t1 < t4
+    beq  $t0, $t7, nolimit2  # limit to max 0xff
+    li $t3, 0xff
+    nolimit2:
+   
     sll $t6, $t6, 16
     sll $t2, $t2, 8
     add $t0, $t6, $t2 #build result
     add $t0, $t0, $t3
     
     add $v1, $t0, $zero
-    
-    lw   $t6, 0($sp)
-    lw   $t4, 4($sp)
-    lw   $t3, 8($sp)
-    lw   $t2, 12($sp)
-    lw   $t0, 16($sp)
-    addi $sp, $sp, 20
+
+    lw $t6, 0($sp)
+    lw $t4, 4($sp)
+    lw $t3, 8($sp)
+    lw $t2, 12($sp)
+    lw $t0, 16($sp)
+    lw $t7, 20($sp) 
+    addi $sp, $sp, 24
     jr $ra
 
 ##  The draw_background function
