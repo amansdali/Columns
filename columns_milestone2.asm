@@ -82,24 +82,126 @@ main:
 # $t0 = the top left corner of the bitmap display
 # $t1 = the location of the pixel
 draw_pixel:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t1, 0($sp)                  # push $t1 onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t2, 0($sp)                  # push $t2 onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t3, 0($sp)                  # push $t3 onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t4, 0($sp)                  # push $t4 onto the stack
+    
     lw $t0, ADDR_DSPL       # $t0 = base address for display
     sll $a0, $a0, 3         # multiply the X coordinate by 8 to get the horizontal offset
     add $t1, $t0, $a0       # add this horizontal offset to $t0, store the result in $t1
     sll $a1, $a1, 9         # multiply the Y coordinate by 512 to get the vertical offset
     add $t1, $t1, $a1       # add this vertical offset to $t1
     
-    sw $a2, 0( $t1 )        # paint the pixel the colour
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
     
     addi $t1, $t1, 4        # add 4 horizontal offset
-    sw $a2, 0( $t1 )        # paint the pixel the colour
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
     
     addi $t1, $t1, 256      # add 256 vertical offset
-    sw $a2, 0( $t1 )        # paint the pixel the colour
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
     
     addi $t1, $t1, -4       # add -4 horizontal offset
-    sw $a2, 0( $t1 )        # paint the pixel the colour
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
+    
+    # recover from stack
+    lw $t4, 0($sp)                  # pop $t4 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $t3, 0($sp)                  # pop $t3 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $t2, 0($sp)                  # pop $t2 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $t1, 0($sp)                  # pop $t1 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
     
     jr $ra                  # return to the calling program.
+
+##  The draw_gem function
+##  - Draws a gem from a given X and Y coordinate 
+#
+# $a0 = the x coordinate
+# $a1 = the y coordinate
+# $a2 = the colour
+# $t0 = the top left corner of the bitmap display
+# $t1 = the location of the pixel
+draw_gem:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t1, 0($sp)                  # push $t1 onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t2, 0($sp)                  # push $t2 onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t3, 0($sp)                  # push $t3 onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t4, 0($sp)                  # push $t4 onto the stack
+    
+    lw $t0, ADDR_DSPL       # $t0 = base address for display
+    sll $a0, $a0, 3         # multiply the X coordinate by 8 to get the horizontal offset
+    add $t1, $t0, $a0       # add this horizontal offset to $t0, store the result in $t1
+    sll $a1, $a1, 9         # multiply the Y coordinate by 512 to get the vertical offset
+    add $t1, $t1, $a1       # add this vertical offset to $t1
+    
+    jal lighten_colour
+    sw $v1, 0( $t1 )        # paint the pixel the colour
+    
+    addi $t1, $t1, 4        # add 4 horizontal offset
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
+    
+    jal darken_colour
+    addi $t1, $t1, 256      # add 256 vertical offset
+    sw $v1, 0( $t1 )        # paint the pixel the darkened colour
+    
+    addi $t1, $t1, -4       # add -4 horizontal offset
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
+    
+    # recover from stack
+    lw $t4, 0($sp)                  # pop $t4 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $t3, 0($sp)                  # pop $t3 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $t2, 0($sp)                  # pop $t2 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $t1, 0($sp)                  # pop $t1 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    
+    jr $ra                  # return to the calling program.
+
+# darken a hex colour
+# $a2 = colour to darken
+# $v1 = darkened colour
+darken_colour:
+    andi $t2, $a2, 0x00ff0000 # red
+    andi $t3, $a2, 0x0000ff00 # green
+    andi $t4, $a2, 0x000000ff # blue
+    sra $t2, $t2, 1 # divide by 2
+    andi $t2, $t2, 0x00ff0000 # get just red component
+    sra $t3, $t3, 1 # divide by 2
+    andi $t3, $t3, 0x0000ff00 # get just green component
+    sra $t4, $t4, 1 # divide by 2
+    andi $t4, $t4, 0x000000ff # get just blue component
+    add $t2, $t2, $t3 # add red and green
+    add $v1, $t2, $t4 # then add blue as well and save
+    jr $ra
+
+# lighten a hex colour
+# $a2 = colour to lighten
+# $v1 = lightened colour
+lighten_colour:
+    li $v1, 0xffffff    #idk how to do this so just use white for the highlight
+    jr $ra
 
 ##  The draw_background function
 ##  - Draws the background hardcoded
@@ -279,7 +381,7 @@ draw_skydiver:
         add $t2, $t8, $t1       # address of the colour to access (base address + offset)
         lw $t9, 0($t2)          # load the colour
         add $a2, $zero, $t9     # set colour
-        jal draw_pixel          # call the draw pixel_function.
+        jal draw_gem          # call the draw_gem function.
 
         addi $t4, $t4, 1
         addi $t7, $t7, 1
@@ -296,7 +398,6 @@ shift_left:
     lw $a2, GREEN
     jal draw_pixel
     jr $ra
-    
     
 check_keyboard:
     li $t4, 0xffff0000       # load keyboard "key pressed" boolean pointer
