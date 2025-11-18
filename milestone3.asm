@@ -448,7 +448,11 @@ draw_skydiver:
         jr $ra
  
 save_stack:
+    #save return address to return to game loop 
+    addi $sp, $sp, -4               
+    sw $ra, 0($sp)    
     
+    #here save it onto memory so it doesnt poof.
     jal generate_gems
     li $t0, 2
     li $t1, 0
@@ -456,6 +460,11 @@ save_stack:
     sb $t0, curr_x
     sb $t1, curr_y
     jal draw_skydiver
+    
+    
+     # restore caller's $ra and return
+    lw   $ra, 0($sp)
+    addi $sp, $sp, 4
     jr $ra
     
 # the clear grid function that clears the 6x13 playing field
@@ -538,8 +547,8 @@ game_loop:
             add $t4, $t6, $zero # store displacement value
             add $a0, $zero, $t6 # add to current coordinate
             lbu $a1, curr_y     # retrieve current y
-            addi $a0, $a0 + 13  # convert to absolute coordinates
-            addi, $a1, $a1 + 9
+            addi $a0, $a0, 13  # convert to absolute coordinates
+            addi, $a1, $a1, 9
             jal convert_pixel 
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
@@ -556,8 +565,8 @@ game_loop:
             add $t4, $t6, $zero 
             add $a0, $zero, $t6
             lbu $a1, curr_y
-            addi $a0, $a0 + 13
-            addi, $a1, $a1 + 9
+            addi $a0, $a0, 13
+            addi, $a1, $a1, 9
             jal convert_pixel
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
@@ -578,8 +587,9 @@ game_loop:
             addi $t4, $t5, 1   # displacement value 
             add $a1, $zero, $t6
             lbu $a0, curr_x
-            addi $a0, $a0 + 13
-            addi $a1, $a1 + 9
+            addi $a0, $a0, 13
+            addi $a1, $a1, 9
+            
             jal convert_pixel
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
@@ -595,7 +605,18 @@ game_loop:
         respond_to_q:   # quit
             j exit
     end_key_input_handling:
-    
+        lbu $a0, curr_x
+        lbu $a1, curr_y
+        addi $a1, $a1, 3 #look down by 1 pixel (+2 pixels of the stack itself)
+        addi $a0, $a0, 13 #convert to absolute system
+        addi, $a1, $a1, 9 #convert to absolute system
+        jal convert_pixel
+        add $t6, $zero, $v0 # return value of converted pixel
+        lw $t5, 0($t6)      # get colour from memory
+        lw $t6, BLACK   
+        beq $t5, $t6, not_bottom
+        jal save_stack 
+    not_bottom:
 	# 2b. Update locations (capsules)
 	# 3. Draw the screen
 	jal clear_grid
