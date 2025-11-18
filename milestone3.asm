@@ -233,8 +233,7 @@ lighten_colour:
     beq  $t0, $t7, nolimit  
     li $t6, 0xff            # limit to max
     nolimit:
-    
-     slt $t0, $t2, $t4       # t0 = 1 if t1 < t4
+    slt $t0, $t2, $t4       # t0 = 1 if t1 < t4
     beq  $t0, $t7, nolimit1  # limit to max 0xff
     li $t2, 0xff
     nolimit1:
@@ -242,7 +241,6 @@ lighten_colour:
     beq  $t0, $t7, nolimit2  # limit to max 0xff
     li $t3, 0xff
     nolimit2:
-   
     sll $t6, $t6, 16
     sll $t2, $t2, 8
     add $t0, $t6, $t2 #build result
@@ -449,8 +447,17 @@ draw_skydiver:
         
         jr $ra
  
+save_stack:
     
-
+    jal generate_gems
+    li $t0, 2
+    li $t1, 0
+    
+    sb $t0, curr_x
+    sb $t1, curr_y
+    jal draw_skydiver
+    jr $ra
+    
 # the clear grid function that clears the 6x13 playing field
 clear_grid:
     # save to stack
@@ -528,12 +535,12 @@ game_loop:
         respond_to_a:   # move left
             lbu $t5, curr_x     # get current x
             addi $t6, $t5, -1   # temporary check value
-            add $t4, $t6, $zero 
-            add $a0, $zero, $t6
-            lbu $a1, curr_y
-            addi $a0, $a0 + 13
+            add $t4, $t6, $zero # store displacement value
+            add $a0, $zero, $t6 # add to current coordinate
+            lbu $a1, curr_y     # retrieve current y
+            addi $a0, $a0 + 13  # convert to absolute coordinates
             addi, $a1, $a1 + 9
-            jal convert_pixel
+            jal convert_pixel 
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
             lw $t6, BLACK   
@@ -568,7 +575,7 @@ game_loop:
             lbu $t5, curr_y     # get current y
             
             addi $t6, $t5, 3   # temporary check value
-            addi $t4, $t5, 1   #displacement value 
+            addi $t4, $t5, 1   # displacement value 
             add $a1, $zero, $t6
             lbu $a0, curr_x
             addi $a0, $a0 + 13
@@ -578,6 +585,8 @@ game_loop:
             lw $t5, 0($t6)      # get colour from memory
             lw $t6, BLACK   
             beq $t5, $t6, allow3
+
+            jal save_stack      # end this skydiver's journey </3 
             b end_key_input_handling
             
             allow3:
