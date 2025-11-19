@@ -932,7 +932,7 @@ zap_gems:
         # maybe we can make this a function later
         sll $t3, $t6, 2         # multiply the X coordinate by 4 to get the horizontal offset
         add $t0, $t2, $t3       # add this horizontal offset to $t2, store the result in $t0
-        li $t5, 0x18
+        li $t5, 24
         multu $t7, $t5         # multiply the Y coordinate by 24 to get the vertical offset
         mflo $t8    # only need the least significant bits
         add $t0, $t0, $t8   # add the vertical offset to t0
@@ -1134,7 +1134,7 @@ check:
     # maybe we can make this a function later
     sll $t1, $v0, 2         # multiply the X coordinate by 4 to get the horizontal offset
     add $t2, $t1, $t0       # add this horizontal offset to $t0, store the result in $t2
-    li $t3, 0x18
+    li $t3, 24
     multu $v1, $t3         # multiply the Y coordinate by 24 to get the vertical offset
     mflo $t4    # only need the least significant bits
     add $t2, $t2, $t4   # add the vertical offset to t2
