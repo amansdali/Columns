@@ -522,10 +522,7 @@ save_stack:
     addi $t4, $t4, 1         # i++
     j SaveLoop
     
-    
     endsaveloop:
-    
-    sw $ra, 0($sp)    
     
     #here save it onto memory so it doesnt poof.
     jal generate_gems
