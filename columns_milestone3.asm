@@ -600,6 +600,80 @@ clear_grid:
     
     jr $ra
 
+# the draw grid function that draws the 6x13 playing field with the gems in their locations as given by the grid variable.
+# (so it draws a black pixel if the location in the grid has no gem, and draws a gem of the corresponding colour if there is one)
+draw_grid:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
+    
+    li $t1, 0  # start x coord (at top left corner)
+    li $t3, 6  # end x coord exclusive
+    li $t4, 13   # end y coord exclusive
+    la $t5, grid    # base address of colour grid
+    
+    draw_grid_loop_x_start:
+        beq $t1, $t3, draw_grid_loop_x_end
+        li $t2, 0   # start y coord
+        draw_grid_loop_y_start:
+            beq $t2, $t4, draw_grid_loop_y_end
+            addi $a0, $t1, 13     # set X coordinate for drawing
+            add $a1, $t2, 9     # set Y coordinate for drawing
+            
+            # get the colour from the grid using the x,y coords
+            sll $t6, $t1, 2         # multiply the X coordinate by 4 to get the horizontal offset
+            add $t7, $t6, $t5       # add this horizontal offset to $t5, store the result in $t7
+            li $t8, 24
+            multu $t2, $t8         # multiply the Y coordinate by 24 to get the vertical offset
+            mflo $t9    # only need the least significant bits
+            add $t7, $t7, $t9   # add the vertical offset to t7
+            lw $a2, 0($t7)  #finally we can get the colour at the given x and y coordinates and store it in $a2
+            
+            # stack stuff
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t1, 0($sp)                  # push $t1 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t2, 0($sp)                  # push $t2 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t3, 0($sp)                  # push $t3 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t4, 0($sp)                  # push $t4 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t5, 0($sp)                  # push $t5 onto the stack
+            
+            lw $t1 BLACK
+            beq $a2, $t1, draw_black_pixel
+                jal draw_gem
+                b done_drawing_pixel_or_gem
+            draw_black_pixel:
+                jal draw_pixel
+            done_drawing_pixel_or_gem:
+            
+            # unstack stuff
+            lw $t5, 0($sp)                  # pop $t5 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t4, 0($sp)                  # pop $t4 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t3, 0($sp)                  # pop $t3 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t2, 0($sp)                  # pop $t2 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t1, 0($sp)                  # pop $t1 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            
+            addi $t2, $t2, 1
+            j draw_grid_loop_y_start
+        draw_grid_loop_y_end:
+            addi $t1, $t1, 1
+        j draw_grid_loop_x_start
+    draw_grid_loop_x_end:
+    
+    # recover from stack
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    
+    jr $ra
+
 # game loop
 game_loop:
     # 1a. Check if key has been pressed
@@ -726,7 +800,7 @@ game_loop:
 	skydiver_airborne:  #else, do nothing for now, but can add logic in the future (for example adding gravity)
 	
 	# 3. Draw the screen
-	jal clear_grid
+	jal draw_grid
 	jal draw_skydiver
 	# 4. Sleep
 	jal sleep
