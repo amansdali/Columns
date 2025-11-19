@@ -842,38 +842,12 @@ game_loop:
 	skydiver_airborne:
 	
 	update_tile_states:
-	   # clear the tiles and stuff
-	   lbu $t1, death_note_length
-	   # else, clear them
-	        la $t2, death_note_x
-	        la $t3, death_note_y
-	        la $t0, grid
-	        lw $t4, BLACK
-	       
-            # for loop that iterates until reached end of list, clears gems from the death note
-            addi $t5, $zero, 0  # index/iteration number
-            clear_gems_loop_start:
-                beq $t5, $t1, clear_gems_loop_end # if reached end of list, end loop
-                add $t6, $t2, $t5   # address of the place in the x list we are at, $t5 is the offset
-                add $t7, $t3, $t5   # address of the place in the y list we are at, $t5 is the offset
-                lb $t6, 0($t6)  # value at this part of the list (x coordinate)
-                lb $t7, 0($t7)  # value at this part of the list (y coordinate)
-                
-                # get the address in the grid that we want to change
-                sll $t6, $t6, 2         # multiply the X coordinate by 4 to get the horizontal offset
-                add $t6, $t6, $t0       # add this horizontal offset to $t0 (base address)
-                li $t9, 24
-                multu $t7, $t9          # multiply the Y coordinate by 24 to get the vertical offset
-                mflo $t7                # only need the least significant bits
-                add $t6, $t6, $t7       # add the vertical offset. t6 = address in memory
-                
-                sw $t4, 0($t6)
-                
-                addi $t5, $t5, 1
-                j clear_gems_loop_start
-                
-	        clear_gems_loop_end:
-	    sb $zero, death_note_length
+	       lbu $t9, death_note_length
+	       beq $t9, 0, draw_the_screen
+	       # else if the hit list is not empty
+	       jal execute_gems
+	       jal drop_gems
+	       jal zap_gems
 	   
 	# 3. Draw the screen
 	draw_the_screen:
@@ -1289,6 +1263,128 @@ check:
     addi $sp, $sp, 4                # move the stack pointer to the top stack element
     jr $ra
 
+# clears all the gems given by the coordinates from death_note_x, death_note_y
+execute_gems:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
+    # clear the tiles and stuff
+    lbu $t1, death_note_length
+    # else, clear them
+        la $t2, death_note_x
+        la $t3, death_note_y
+        la $t0, grid
+        lw $t4, BLACK
+       
+        # for loop that iterates until reached end of list, clears gems from the death note
+        addi $t5, $zero, 0  # index/iteration number
+        clear_gems_loop_start:
+            beq $t5, $t1, clear_gems_loop_end # if reached end of list, end loop
+            add $t6, $t2, $t5   # address of the place in the x list we are at, $t5 is the offset
+            add $t7, $t3, $t5   # address of the place in the y list we are at, $t5 is the offset
+            lb $t6, 0($t6)  # value at this part of the list (x coordinate)
+            lb $t7, 0($t7)  # value at this part of the list (y coordinate)
+            
+            # get the address in the grid that we want to change
+            sll $t6, $t6, 2         # multiply the X coordinate by 4 to get the horizontal offset
+            add $t6, $t6, $t0       # add this horizontal offset to $t0 (base address)
+            li $t9, 24
+            multu $t7, $t9          # multiply the Y coordinate by 24 to get the vertical offset
+            mflo $t7                # only need the least significant bits
+            add $t6, $t6, $t7       # add the vertical offset. t6 = address in memory
+            
+            sw $t4, 0($t6)
+            
+            addi $t5, $t5, 1
+            j clear_gems_loop_start
+            
+        clear_gems_loop_end:
+    sb $zero, death_note_length
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    jr $ra
+
+# the drop gems function iterates through the tiles in the grid from bottom to top and if theres an empty space under a gem, drops the gem down one space.
+# repeats this until all the gems have been dropped
+drop_gems:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $s0, 0($sp)                  # push $s0 onto the stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $s1, 0($sp)                  # push $s1 onto the stack
+    
+    li $t2, 0  # start y value (to subtract from 11)
+    li $t3, 6  # end x coord exclusive
+    li $t4, 12   # end y value exclusive
+    
+    li $s0, 1 # 1 if gems have been dropped/might need to be dropped, 0 if all gems completely dropped
+    drop_gems_while_loop_start:
+        beq $s0, 0, drop_gems_while_loop_end
+        
+        jal draw_grid
+    	jal draw_skydiver
+    	jal sleeeep
+    	
+        li $s0, 0
+        li $t2, 0
+        li $t3, 6  # end x coord exclusive
+        li $t4, 12 # end y value exclusive
+        drop_gems_loop_y_start:
+            beq $t2, $t4, drop_gems_loop_y_end
+            li $t1, 0   # start x coord
+            li $t6, 11
+            sub $t6, $t6, $t2   # y coord
+            drop_gems_loop_x_start:
+                beq $t1, $t3, drop_gems_loop_x_end
+                
+                # get the colour from the grid using the x,y coords
+                la $t5, grid    # base address of colour grid
+                sll $t7, $t1, 2         # multiply the X coordinate by 4 to get the horizontal offset
+                add $t7, $t7, $t5       # add this horizontal offset to $t5, store the result in $t7
+                li $t8, 24
+                multu $t6, $t8         # multiply the Y coordinate by 24 to get the vertical offset
+                mflo $t8    # only need the least significant bits
+                add $t7, $t7, $t8   # add the vertical offset to t7
+                lw $t8, 0($t7)  #finally we can get the colour at the given x and y coordinates and store it in $t8
+                
+                lw $s1 BLACK
+                beq $t8, $s1, if_not_drop_gem
+                    # get the colour from the grid using the x,y coords
+                    addi $t8, $t7, 24   # add vertical offset of 24 to original address
+                    lw $t9, 0($t8)  #finally we can get the colour at the given x and y coordinates and store it in $t9
+                    
+                    # t8, t7 are the addresses in the grid, $s1 is black, t9 is the lower colour
+                    beq $t9, $s1, if_drop_gem
+                    b if_not_drop_gem
+                    if_drop_gem:
+                        li $s0, 1   # at least one gem has been dropped
+                        lw $t9, 0($t7)  # colour of the gem to drop
+                        sw $s1, 0($t7)  # original location is empty
+                        sw $t9, 0($t8)  # gem in new location       
+                        b done_dropping_gem
+                if_not_drop_gem:
+                done_dropping_gem:
+                
+                addi $t1, $t1, 1
+                j drop_gems_loop_x_start
+            drop_gems_loop_x_end:
+                addi $t2, $t2, 1
+                j drop_gems_loop_y_start
+        drop_gems_loop_y_end:
+            j drop_gems_while_loop_start
+    drop_gems_while_loop_end:
+    # recover from stack
+    lw $s1, 0($sp)                  # pop $s1 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $s0, 0($sp)                  # pop $s0 from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    
+    jr $ra
+
 # Generate a random integer
 rand_num:
     li $v0, 42              # command for random number generation with a maximum
@@ -1301,6 +1397,12 @@ rand_num:
 sleep:
     li $v0, 32              # command for sleep
     li $a0, 10              # number of milliseconds (1000 = 1 second)
+    syscall
+    jr $ra
+
+sleeeep:
+    li $v0, 32              # command for sleep
+    li $a0, 100              # number of milliseconds (1000 = 1 second)
     syscall
     jr $ra
 
