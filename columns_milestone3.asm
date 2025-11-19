@@ -476,11 +476,43 @@ draw_skydiver:
  
 save_stack:
     #save return address to return to game loop 
-    addi $sp, $sp, -4               
+    addi $sp, $sp, -4    
+    
+    sw $ra, 0($sp)   
+
+    la $t0, grid           # base address of grid[]
+    la $t1, curr_gem_clrs  # base address of gem colours
+
+    li $t4, 0
+
+    lbu $t2, curr_x # current x
+    lbu $t3, curr_y 
+    
+    SaveLoop: beq $t4, 3, endsaveloop
+    
+    add $t3, $t3, $t4 #current y
+    
+    #calculate location in memory 
+    mult $t5, $t2, 4
+    
+    li  $t1, 0xFF0000    # $t1 = some colour (red)
+    #syntax to store in memory: sw colour, offset x many bytes more, location of first byte in memory
+    #Storing a word (sw) writes all 4 bytes of 32-bit val starting at the given address, automatically filling the next three addresses
+    sw  $t1, 0($t0)      # memory[grid + 0] = $t1
+   
+   
+    addi $t4, $t4, 1         # i++
+    j SaveLoop
+    
+    
+    endsaveloop:
+    
     sw $ra, 0($sp)    
     
     #here save it onto memory so it doesnt poof.
     jal generate_gems
+    
+    #reset cur x and y
     li $t0, 2
     li $t1, 0
     
