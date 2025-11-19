@@ -809,7 +809,7 @@ game_loop:
         la $t9, sus_list_x  # address of sus_list_x (list of tiles to check, which is empty rn and so we need to add the address of the three gems now)
         la $t0, sus_list_y  # same thing but for y coordinates
     
-        # loop that adds each gem in the skydiver to the sus list
+        # adds all gems that have fallen into sus list for inspection 🤨 
         add_skydiver_to_sus_list_loop_start:
             beq $t4, $t5, add_skydiver_to_sus_list_loop_end
             
@@ -919,7 +919,9 @@ zap_gems:
     # for loop that iterates until reached end of list
     addi $t2, $zero, 0  # index/iteration number
     lbu $t3, sus_list_length # maximum index (exclusive) is the length of the list
-    zap_gems_loop_start:
+    zap_gems_loop_start: 
+        li $s7, 0 # track if checked direction is a multiple of 2 for correct diametric length check
+        
         beq $t2, $t3, zap_gems_loop_end # if reached end of list, end loop
         add $t4, $t0, $t2   # address of the place in the x list we are at, $t2 is the offset
         add $t5, $t1, $t2   # address of the place in the y list we are at, $t2 is the offset
@@ -963,13 +965,18 @@ zap_gems:
         
         # check in all directions around bro
         check_all_directions_loop_start:
-            beq $t2, $t3, check_all_directions_loop_end
-            
+            beq $t2, $t3, check_all_directions_loop_end #t2 is direction. 
+            # order of checking directions is 0, 7, 1, 6, 2, 5, 3, 4. clear temp list after every TWO checks.
+            jal adjusted_direction #s3 is now adjusted direction in order
+            addi $s7, $s7, 1 #increment s7 to count the number of checks
             # now call the get next function which will return the 'next' x,y in v0, v1
+        
+            
             add $a0, $t6, $zero
             add $a1, $t7, $zero
-            add $a2, $t2, $zero
+            add $a2, $s3, $zero
             jal get_next
+            
             #use $v0, $v1
             
             li $t8, 0  # length of list should be reset to 0
@@ -991,7 +998,7 @@ zap_gems:
             addi $sp, $sp, -4               # move the stack pointer to an empty location
             sw $t1, 0($sp)                  # push $t1 onto the stack
             addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t2, 0($sp)                  # push $t2 onto the stack
+            sw $t2, 0($sp)                  # push $s3 onto the stack
             addi $sp, $sp, -4               # move the stack pointer to an empty location
             sw $t3, 0($sp)                  # push $t3 onto the stack
             addi $sp, $sp, -4               # move the stack pointer to an empty location
@@ -1010,8 +1017,16 @@ zap_gems:
             sw $t0, 0($sp)                  # push $t0 onto the stack
             
             add $a0, $t1, $zero
-            add $a1, $t2, $zero
-            li $a2, 1
+            add $a1, $s3, $zero
+            #set only length to 1 every other check
+            li $s6, 6
+            li $s5, 4
+            li $s4, 2
+            beq $s7, $s6, skipReset
+            beq $s7, $s5, skipReset
+            beq $s7, $s4, skipReset
+            li $a3, 1
+            skipReset:
             jal check
             
             lw $t0, 0($sp)                  # pop $t0 from the stack
@@ -1089,6 +1104,44 @@ zap_gems:
     addi $sp, $sp, 4                # move the stack pointer to the top stack element
     jr $ra
 
+# function that functions the direction for custom order (function) f let f be R→ R^2, defined as f = √(3x^2) + 4
+# t2 = iteration variable, return t2 = direction
+adjusted_direction:
+    beq $t2, 0, go0
+    beq $t2, 1, go1
+    beq $t2, 2, go2
+    beq $t2, 3, go3
+    beq $t2, 4, go4
+    beq $t2, 5, go5
+    beq $t2, 6, go6
+    beq $t2, 7, go7
+                        
+    go0:
+        addi $s3, $zero, 0
+        j end
+    go1:
+        addi $s3, $zero, 4
+        j end
+    go2:
+        addi $s3, $zero, 1
+        j end
+    go3:
+        addi $s3, $zero, 5
+        j end
+    go4:
+        addi $s3, $zero, 2
+        j end
+    go5:
+        addi $s3, $zero, 6
+        j end
+    go6:
+        addi $s3, $zero, 3
+        j end
+    go7:
+        addi $s3, $zero, 7
+    end:
+    jr $ra
+    
 # function that gets the next x,y coordiate given d direction
 # a0 is x coord
 # a1 is y coord
@@ -1155,7 +1208,7 @@ get_next:
 # v1: y
 # a0: colour
 # a1: direction
-# a2: count
+# a3: count
 check: 
     # save to stack
     addi $sp, $sp, -4               # move the stack pointer to an empty location
@@ -1174,9 +1227,9 @@ check:
     
     beq $a0, $t5, if_colours_matching
     # else (base case: colours not matching)
-        slt $t0, $a2, 3 # 1 if count < 3, 0 if count >= 3
+        slt $t0, $a3, 3 # 1 if count < 3, 0 if count >= 3
         bne $t0, $zero, count_less_than_three
-            # else count is >= 3:
+            #count is >= 3 in this branch:
             # death_note_x += temporary_list_x
             la $t3, temporary_list_x
             la $t4, temporary_list_y
@@ -1208,10 +1261,18 @@ check:
             append_temp_list_to_death_note_loop_end:
             b end_of_check_function
 
-
         count_less_than_three:
-            # clear the temporary list
-            sb $zero, temporary_list_length
+            # else (a + b < 3):
+            # clear the temporary list only if s7 //2 = 0 (every second check), -> s7 = 2,4,6
+            li $s6, 6
+            li $s5, 4
+            li $s4, 2
+            beq $s7, $s6, clearTemp
+            beq $s7, $s5, clearTemp
+            beq $s7, $s4, clearTemp
+            b end_of_check_function
+            clearTemp:
+                sb $zero, temporary_list_length
         b end_of_check_function
     if_colours_matching:
         # add this gem to the temporary list:
@@ -1226,7 +1287,6 @@ check:
         add $t9, $t9, $t8   #add offset, this is the address in the temporary list for y variable
         sb $v1, 0($t9)  # store y coordinate
         addi $t8, $t8, 1    # increment length of the list
-        sb $t8, temporary_list_length   # update in memory
         
         # save the current arguments
         addi $sp, $sp, -4               # move the stack pointer to an empty location
@@ -1252,8 +1312,8 @@ check:
         addi $sp, $sp, 4                # move the stack pointer to the top stack element
         
         # increment count
-        addi $a2, $a2, 1
-        
+        addi $a3, $a3, 1
+         sb $a3, temporary_list_length   # update in memory
         # make the call
         jal check
         
@@ -1293,7 +1353,7 @@ execute_gems:
             mflo $t7                # only need the least significant bits
             add $t6, $t6, $t7       # add the vertical offset. t6 = address in memory
             
-            sw $t4, 0($t6)
+            sw $t4, 0($t6)          #write black over pixel to clear
             
             addi $t5, $t5, 1
             j clear_gems_loop_start
@@ -1385,6 +1445,8 @@ drop_gems:
     
     jr $ra
 
+
+    
 # Generate a random integer
 rand_num:
     li $v0, 42              # command for random number generation with a maximum
@@ -1405,7 +1467,7 @@ sleeeep:
     li $a0, 100              # number of milliseconds (1000 = 1 second)
     syscall
     jr $ra
-
+            
 # Terminate program gracefully
 exit:
     li $v0, 10              # terminate the program gracefully
