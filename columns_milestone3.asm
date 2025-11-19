@@ -91,6 +91,30 @@ main:
     # Initialize the game
     lw $t0, ADDR_DSPL       # $t0 = base address for display
     
+    # testing testing 123
+    la $t5, grid
+    li $t1, 2
+    li $t2, 5
+    sll $t6, $t1, 2         # multiply the X coordinate by 4 to get the horizontal offset
+    add $t7, $t6, $t5       # add this horizontal offset to $t5, store the result in $t7
+    li $t8, 24
+    multu $t2, $t8         # multiply the Y coordinate by 24 to get the vertical offset
+    mflo $t9    # only need the least significant bits
+    add $t7, $t7, $t9   # add the vertical offset to t7
+    li $a2, 0x000000ff  # colour
+    sw $a2, 0($t7)  #store the colour at the given x and y coordinates
+    # more testing testing 123
+    li $t1, 1
+    li $t2, 5
+    sll $t6, $t1, 2         # multiply the X coordinate by 4 to get the horizontal offset
+    add $t7, $t6, $t5       # add this horizontal offset to $t5, store the result in $t7
+    li $t8, 24
+    multu $t2, $t8         # multiply the Y coordinate by 24 to get the vertical offset
+    mflo $t9    # only need the least significant bits
+    add $t7, $t7, $t9   # add the vertical offset to t7
+    li $a2, 0x000000ff  # colour
+    sw $a2, 0($t7)  #store the colour at the given x and y coordinates
+    
     jal generate_gems
     jal draw_skydiver
     jal draw_background
@@ -490,14 +514,12 @@ save_stack:
     
     SaveLoop: beq $t4, 3, endsaveloop
     
-    add $t3, $t3, $t4 #current y
-    
     #calculate location in memory 
     # get the colour from the grid using the x,y coords
     sll $t5, $t2, 2         # multiply the X coordinate by 4 to get the horizontal offset
     add $t6, $t5, $t0       # add this horizontal offset to $t0
     li $t7, 24
-    multu $v1, $t7          # multiply the Y coordinate by 24 to get the vertical offset
+    multu $t3, $t7          # multiply the Y coordinate by 24 to get the vertical offset
     mflo $t5    # only need the least significant bits
     add $t6, $t6, $t5   # add the vertical offset to t2: t6 = address in memory
     
@@ -506,9 +528,8 @@ save_stack:
     addi $a0, $a0, 13
     addi, $a1, $a1, 9
     jal convert_pixel
-    add $t5, $zero, $v0 # return value of converted pixel
+    addi $t5, $v0, 4 # return value of converted pixel
     lw $t7, 0($t5)      # get colour from memory
-    
     
     #syntax to store in memory: sw colour, offset x many bytes more, location of first byte in memory
     #Storing a word (sw) writes all 4 bytes of 32-bit val starting at the given address, automatically filling the next three addresses
@@ -519,10 +540,14 @@ save_stack:
     li $a1, 0x4
     add $a2, $zero, $t8
     
+    addi $t3, $t3, 0
     addi $t4, $t4, 1         # i++
     j SaveLoop
     
+    
     endsaveloop:
+    
+  
     
     #here save it onto memory so it doesnt poof.
     jal generate_gems
@@ -942,6 +967,10 @@ zap_gems:
             addi $sp, $sp, -4               # move the stack pointer to an empty location
             sw $t5, 0($sp)                  # push $t5 onto the stack
             addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t6, 0($sp)                  # push $t6 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t7, 0($sp)                  # push $t7 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
             sw $t8, 0($sp)                  # push $t8 onto the stack
             addi $sp, $sp, -4               # move the stack pointer to an empty location
             sw $t9, 0($sp)                  # push $t9 onto the stack
@@ -958,6 +987,10 @@ zap_gems:
             lw $t9, 0($sp)                  # pop $t9 from the stack
             addi $sp, $sp, 4                # move the stack pointer to the top stack element
             lw $t8, 0($sp)                  # pop $t8 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t7, 0($sp)                  # pop $t7 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t6, 0($sp)                  # pop $t6 from the stack
             addi $sp, $sp, 4                # move the stack pointer to the top stack element
             lw $t5, 0($sp)                  # pop $t5 from the stack
             addi $sp, $sp, 4                # move the stack pointer to the top stack element
@@ -1035,14 +1068,14 @@ get_next:
     addi $sp, $sp, -4               # move the stack pointer to an empty location
     sw $ra, 0($sp)                  # push $ra onto the stack
     
-    beq $a1, 0, case_direction_0
-    beq $a1, 1, case_direction_1
-    beq $a1, 2, case_direction_2
-    beq $a1, 3, case_direction_3
-    beq $a1, 4, case_direction_4
-    beq $a1, 5, case_direction_5
-    beq $a1, 6, case_direction_6
-    beq $a1, 7, case_direction_7
+    beq $a2, 0, case_direction_0
+    beq $a2, 1, case_direction_1
+    beq $a2, 2, case_direction_2
+    beq $a2, 3, case_direction_3
+    beq $a2, 4, case_direction_4
+    beq $a2, 5, case_direction_5
+    beq $a2, 6, case_direction_6
+    beq $a2, 7, case_direction_7
     case_direction_0:
         add $v0, $a0, -1
         add $v1, $a1, $zero
@@ -1101,7 +1134,7 @@ check:
     # maybe we can make this a function later
     sll $t1, $v0, 2         # multiply the X coordinate by 4 to get the horizontal offset
     add $t2, $t1, $t0       # add this horizontal offset to $t0, store the result in $t2
-    li $t3, 24
+    li $t3, 0x18
     multu $v1, $t3         # multiply the Y coordinate by 24 to get the vertical offset
     mflo $t4    # only need the least significant bits
     add $t2, $t2, $t4   # add the vertical offset to t2
@@ -1159,8 +1192,8 @@ check:
     
         # call the get next function
         add $a0, $v0, $zero
-        add $a1, $v1, $zero
         add $a2, $a1, $zero
+        add $a1, $v1, $zero
         jal get_next
         #use $v0, $v1
         
@@ -1171,6 +1204,9 @@ check:
         addi $sp, $sp, 4                # move the stack pointer to the top stack element
         lw $a0, 0($sp)                  # pop $a0 from the stack
         addi $sp, $sp, 4                # move the stack pointer to the top stack element
+        
+        # increment count
+        addi $a2, $a2, 1
         
         # make the call
         jal check
