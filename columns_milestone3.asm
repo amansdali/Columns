@@ -481,7 +481,7 @@ save_stack:
     sw $ra, 0($sp)   
 
     la $t0, grid           # base address of grid[]
-    #la $t1, curr_gem_clrs  # base address of gem colours
+    la $t1, curr_gem_clrs  # base address of gem colours
 
     li $t4, 0
 
@@ -501,14 +501,13 @@ save_stack:
     mflo $t5                # only need the least significant bits
     add $t6, $t6, $t5   # add the vertical offset to t2: t6 = address in memory
     
-    add $a0, $zero, $t2
-    add $a1, $zero, $t9
-    addi $a0, $a0, 13
-    addi $a1, $a1, 8   #count 1 above since not fully down
-    jal convert_pixel
-    
-    addi $t5, $v0, 4 # return value of converted pixel
-    lw $t7, 0($t5)      # get colour from memory
+    sll $t5, $t4, 2     # offset is index*4
+        # draw gem
+        addi $a0, $t6, 13       # set X coordinate
+        addi $a1, $t7, 9        # set Y coordinate
+        
+    add $t5, $t1, $t5       # address of the colour to access (base address + offset)
+    lw $t7, 0($t5)          # load the colour
     
    # li $v0, 1
    # move $a0, $t7
