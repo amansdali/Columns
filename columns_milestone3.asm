@@ -509,9 +509,6 @@ save_stack:
     add $t5, $t1, $t5       # address of the colour to access (base address + offset)
     lw $t7, 0($t5)          # load the colour
     
-   # li $v0, 1
-   # move $a0, $t7
-   # sw $a2, 0( $t1 )
     
     #syntax to store in memory: sw colour, offset x many bytes more, location of first byte in memory
     #Storing a word (sw) writes all 4 bytes of 32-bit val starting at the given address, automatically filling the next three addresses
@@ -693,16 +690,40 @@ game_loop:
             add $t4, $t6, $zero # store displacement value
             add $a0, $zero, $t6 # add to current coordinate
             lbu $a1, curr_y     # retrieve current y
-            addi $a0, $a0, 13  # convert to absolute coordinates
+            addi $a0, $a0, 13   # convert to absolute coordinates
             addi, $a1, $a1, 9
             jal convert_pixel 
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
             lw $t6, BLACK   
-            beq $t5, $t6, allow
-            b end_key_input_handling
+            bne $t5, $t6 end_key_input_handling
+            #test if collide with x-1, y-1
+            lbu $t5, curr_x     # get current x
+            addi $t6, $t5, -1   # temporary check value
+            add $a0, $zero, $t6 # add to current coordinate
+            lbu $a1, curr_y     # retrieve current y
+            addi $a0, $a0, 13   # convert to absolute coordinates
+            addi, $a1, $a1, 10
+            jal convert_pixel 
+            add $t6, $zero, $v0 # return value of converted pixel
+            lw $t5, 0($t6)      # get colour from memory
+            lw $t6, BLACK   
+            bne $t5, $t6 end_key_input_handling
             
-            allow:
+            #test if collide with x-1, y-2
+            lbu $t5, curr_x     # get current x
+            addi $t6, $t5, -1   # temporary check value
+            add $a0, $zero, $t6 # add to current coordinate
+            lbu $a1, curr_y     # retrieve current y
+            addi $a0, $a0, 13   # convert to absolute coordinates
+            addi, $a1, $a1, 11
+            jal convert_pixel 
+            add $t6, $zero, $v0 # return value of converted pixel
+            lw $t5, 0($t6)      # get colour from memory
+            lw $t6, BLACK   
+            bne $t5, $t6 end_key_input_handling
+        
+            #if all 3 passed, no collide!! :D
             sb $t4, curr_x      # save new x to curr_x
             b end_key_input_handling
         respond_to_d:   # move right
@@ -717,10 +738,32 @@ game_loop:
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
             lw $t6, BLACK   
-            beq $t5, $t6, allow2
-            b end_key_input_handling
+            bne $t5, $t6, end_key_input_handling
             
-            allow2:
+             lbu $t5, curr_x     # get current x
+            addi $t6, $t5, 1   # temporary check value
+            add $a0, $zero, $t6
+            lbu $a1, curr_y
+            addi $a0, $a0, 13
+            addi, $a1, $a1, 10
+            jal convert_pixel
+            add $t6, $zero, $v0 # return value of converted pixel
+            lw $t5, 0($t6)      # get colour from memory
+            lw $t6, BLACK   
+            bne $t5, $t6, end_key_input_handling
+            
+            lbu $t5, curr_x     # get current x
+            addi $t6, $t5, 1   # temporary check value
+            add $a0, $zero, $t6
+            lbu $a1, curr_y
+            addi $a0, $a0, 13
+            addi, $a1, $a1, 11
+            jal convert_pixel
+            add $t6, $zero, $v0 # return value of converted pixel
+            lw $t5, 0($t6)      # get colour from memory
+            lw $t6, BLACK   
+            bne $t5, $t6, end_key_input_handling
+            
             sb $t4, curr_x      # save new x to curr_x
             b end_key_input_handling
         respond_to_w:   # shuffle/shift gems
