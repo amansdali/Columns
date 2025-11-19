@@ -486,7 +486,8 @@ save_stack:
     li $t4, 0
 
     lbu $t2, curr_x # current x
-    lbu $t3, curr_y 
+    lbu $t3, curr_y #LABUBU????
+    beq $t3, 0, respond_to_q
 
     SaveLoop: beq $t4, 3, endsaveloop
     
@@ -803,7 +804,7 @@ game_loop:
         lw $t6, BLACK   
         beq $t5, $t6, not_bottom
         jal save_stack 
-        not_bottom:
+        not_bottom: #not me
 	# 2b. Update locations (capsules)
 	skydiver_landed:   # if the stack of gems has landed, start the algorithm for clearing gems
 	    # now, the skydiver should be landed. add the skydiver to sus_list and start the algorithm. at this point, the sus_list should be empty.
@@ -1251,4 +1252,20 @@ sleep:
 # Terminate program gracefully
 exit:
     li $v0, 10              # terminate the program gracefully
+                            #                           ↑ yo wtf says this mf thinks he in lit sybau
+    lw $t0, GRAY
+    li $t1, 0x10008440
+    li $t2, 0x10008740
+    li $t3, 0x10008450
+    li $t4, 0x10008550
+    li $t5, 0x10008650
+    li $t6, 0x10008754
+    li $t7, 0x10008354
+    sw $t0, 0($t1)
+    sw $t0, 0($t2)
+    sw $t0, 0($t3)
+    sw $t0, 0($t4)
+    sw $t0, 0($t5)
+    sw $t0, 0($t6)
+    sw $t0, 0($t7)
     syscall
