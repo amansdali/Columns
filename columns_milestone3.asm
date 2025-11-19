@@ -488,19 +488,37 @@ save_stack:
     lbu $t2, curr_x # current x
     lbu $t3, curr_y 
     
-    SaveLoop: beq $t4, 3, endsaveloop
+    SaveLoop: beq $t4, 6, endsaveloop
     
     add $t3, $t3, $t4 #current y
     
     #calculate location in memory 
-    mult $t5, $t2, 4
+    # get the colour from the grid using the x,y coords
+    sll $t5, $t2, 2         # multiply the X coordinate by 4 to get the horizontal offset
+    add $t6, $t5, $t0       # add this horizontal offset to $t0
+    li $t7, 24
+    multu $v1, $t7          # multiply the Y coordinate by 24 to get the vertical offset
+    mflo $t5    # only need the least significant bits
+    add $t6, $t6, $t5   # add the vertical offset to t2: t6 = address in memory
     
-    li  $t1, 0xFF0000    # $t1 = some colour (red)
+    add $a0, $zero, $t2
+    add $a1, $zero, $t3
+    addi $a0, $a0, 13
+    addi, $a1, $a1, 9
+    jal convert_pixel
+    add $t5, $zero, $v0 # return value of converted pixel
+    lw $t7, 0($t5)      # get colour from memory
+    
+    
     #syntax to store in memory: sw colour, offset x many bytes more, location of first byte in memory
     #Storing a word (sw) writes all 4 bytes of 32-bit val starting at the given address, automatically filling the next three addresses
-    sw  $t1, 0($t0)      # memory[grid + 0] = $t1
+    sw $t7, 0($t6)      # memory[grid + 0] = $t1
    
-   
+    lbu $t8, 0($t6)
+    li $a0, 0x4
+    li $a1, 0x4
+    add $a2, $zero, $t8
+    
     addi $t4, $t4, 1         # i++
     j SaveLoop
     
@@ -1023,38 +1041,7 @@ check:
         slt $t0, $a2, 3 # 1 if count < 3, 0 if count >= 3
         bne $t0, $zero, count_less_than_three
             # else count is >= 3:
-            # death_note_x += temporary_list_x
             
-            la $t3, temporary_list_x
-            la $t4, temporary_list_y
-            la $t6, death_note_x
-            la $t7, death_note_y
-            
-            # for loop that iterates until reached end of temporary_list
-            addi $t1, $zero, 0  # index/iteration number
-            lbu $t2, temporary_list_length # maximum index (exclusive) is the length of the list
-            append_temp_list_to_death_note_loop_start:
-                beq $t1, $t2, append_temp_list_to_death_note_loop_end # if reached end of list, end loop
-                add $t8, $t3, $t1   # address of the place in the x list we are at, $t1 is the offset
-                add $t9, $t4, $t1   # address of the place in the y list we are at, $t1 is the offset
-                lb $t8, 0($t8)  # value at this part of the list (x coordinate)
-                lb $t9, 0($t9)  # value at this part of the list (y coordinate)
-                
-                lbu $t5, death_note_length
-                add $t5, $t5, $t1   # offset for death note
-                add $t0, $t5, $t6   # address for x value
-                sb $t8, 0($t0)
-                add $t0, $t5, $t7   # address for y value
-                sb $t9, 0($t0)
-                addi $t5, $t5, 1
-                sb $t5, death_note_length
-                
-                addi $t1, $t1, 1
-                j append_temp_list_to_death_note_loop_start
-                
-            append_temp_list_to_death_note_loop_end:
-            b end_of_check_function
-
         count_less_than_three:
             # clear the temporary list
             sb $zero, temporary_list_length
