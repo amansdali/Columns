@@ -488,7 +488,7 @@ save_stack:
     lbu $t2, curr_x # current x
     lbu $t3, curr_y 
     
-    SaveLoop: beq $t4, 6, endsaveloop
+    SaveLoop: beq $t4, 3, endsaveloop
     
     add $t3, $t3, $t4 #current y
     
@@ -1041,7 +1041,38 @@ check:
         slt $t0, $a2, 3 # 1 if count < 3, 0 if count >= 3
         bne $t0, $zero, count_less_than_three
             # else count is >= 3:
+            # death_note_x += temporary_list_x
+            la $t3, temporary_list_x
+            la $t4, temporary_list_y
+            la $t6, death_note_x
+            la $t7, death_note_y
             
+            # for loop that iterates until reached end of temporary_list
+            addi $t1, $zero, 0  # index/iteration number
+            lbu $t2, temporary_list_length # maximum index (exclusive) is the length of the list
+            append_temp_list_to_death_note_loop_start:
+                beq $t1, $t2, append_temp_list_to_death_note_loop_end # if reached end of list, end loop
+                add $t8, $t3, $t1   # address of the place in the x list we are at, $t1 is the offset
+                add $t9, $t4, $t1   # address of the place in the y list we are at, $t1 is the offset
+                lb $t8, 0($t8)  # value at this part of the list (x coordinate)
+                lb $t9, 0($t9)  # value at this part of the list (y coordinate)
+                
+                lbu $t5, death_note_length
+                add $t5, $t5, $t1   # offset for death note
+                add $t0, $t5, $t6   # address for x value
+                sb $t8, 0($t0)
+                add $t0, $t5, $t7   # address for y value
+                sb $t9, 0($t0)
+                addi $t5, $t5, 1
+                sb $t5, death_note_length
+                
+                addi $t1, $t1, 1
+                j append_temp_list_to_death_note_loop_start
+                
+            append_temp_list_to_death_note_loop_end:
+            b end_of_check_function
+
+
         count_less_than_three:
             # clear the temporary list
             sb $zero, temporary_list_length
