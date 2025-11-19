@@ -474,6 +474,7 @@ draw_skydiver:
         
         jr $ra
  
+# saves the current skydiver to the memory grid (precondition that the skydiver has stopped due to landing on something)
 save_stack:
     #save return address to return to game loop 
     addi $sp, $sp, -4    
@@ -510,7 +511,6 @@ save_stack:
     add $t5, $t1, $t5       # address of the colour to access (base address + offset)
     lw $t7, 0($t5)          # load the colour
     
-    
     #syntax to store in memory: sw colour, offset x many bytes more, location of first byte in memory
     #Storing a word (sw) writes all 4 bytes of 32-bit val starting at the given address, automatically filling the next three addresses
     sw $t7, 0($t6)      # save memory[grid + 0] = $t1
@@ -519,19 +519,7 @@ save_stack:
     j SaveLoop
     
     endsaveloop:
-    
-    #here save it onto memory so it doesnt poof.
-    jal generate_gems
-    
-    #reset cur x and y
-    li $t0, 2
-    li $t1, 0
-    
-    sb $t0, curr_x
-    sb $t1, curr_y
-    jal draw_skydiver
-    
-    
+        
      # restore caller's $ra and return
     lw   $ra, 0($sp)
     addi $sp, $sp, 4
@@ -697,6 +685,7 @@ game_loop:
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
             lw $t6, BLACK   
+            
             bne $t5, $t6 end_key_input_handling
             #test if collide with x-1, y-1
             lbu $t5, curr_x     # get current x
@@ -725,6 +714,7 @@ game_loop:
             bne $t5, $t6 end_key_input_handling
         
             #if all 3 passed, no collide!! :D
+            
             sb $t4, curr_x      # save new x to curr_x
             b end_key_input_handling
         respond_to_d:   # move right
@@ -739,9 +729,10 @@ game_loop:
             add $t6, $zero, $v0 # return value of converted pixel
             lw $t5, 0($t6)      # get colour from memory
             lw $t6, BLACK   
+            
             bne $t5, $t6, end_key_input_handling
             
-             lbu $t5, curr_x     # get current x
+            lbu $t5, curr_x     # get current x
             addi $t6, $t5, 1   # temporary check value
             add $a0, $zero, $t6
             lbu $a1, curr_y
@@ -784,7 +775,6 @@ game_loop:
             lw $t5, 0($t6)      # get colour from memory
             lw $t6, BLACK   
             beq $t5, $t6, allow3
-            jal save_stack      # end this skydiver's journey </3 
             b end_key_input_handling
             
             allow3:
@@ -802,9 +792,12 @@ game_loop:
         add $t6, $zero, $v0 # return value of converted pixel
         lw $t5, 0($t6)      # get colour from memory
         lw $t6, BLACK   
-        beq $t5, $t6, not_bottom
-        jal save_stack 
-        not_bottom: #not me
+        beq $t5, $t6, skydiver_airborne
+        
+            # if skydiver is landed:
+            jal save_stack  # end this skydiver's journey </3 
+            # then go to the skydiver_landed branch by default
+        
 	# 2b. Update locations (capsules)
 	skydiver_landed:   # if the stack of gems has landed, start the algorithm for clearing gems
 	    # now, the skydiver should be landed. add the skydiver to sus_list and start the algorithm. at this point, the sus_list should be empty.
@@ -835,10 +828,55 @@ game_loop:
         add_skydiver_to_sus_list_loop_end:
             # now start the algorithm
             jal zap_gems
-            
-	skydiver_airborne:  #else, do nothing for now, but can add logic in the future (for example adding gravity)
+        
+        # reset the skydiver
+        jal generate_gems
+        #reset cur x and y
+        li $t0, 2
+        li $t1, 0
+        sb $t0, curr_x
+        sb $t1, curr_y
+        
+        b update_tile_states
+        
+	skydiver_airborne:
 	
+	update_tile_states:
+	   # clear the tiles and stuff
+	   lbu $t1, death_note_length
+	   # else, clear them
+	        la $t2, death_note_x
+	        la $t3, death_note_y
+	        la $t0, grid
+	        lw $t4, BLACK
+	       
+            # for loop that iterates until reached end of list, clears gems from the death note
+            addi $t5, $zero, 0  # index/iteration number
+            clear_gems_loop_start:
+                beq $t5, $t1, clear_gems_loop_end # if reached end of list, end loop
+                add $t6, $t2, $t5   # address of the place in the x list we are at, $t5 is the offset
+                add $t7, $t3, $t5   # address of the place in the y list we are at, $t5 is the offset
+                lb $t6, 0($t6)  # value at this part of the list (x coordinate)
+                lb $t7, 0($t7)  # value at this part of the list (y coordinate)
+                
+                # get the address in the grid that we want to change
+                sll $t6, $t6, 2         # multiply the X coordinate by 4 to get the horizontal offset
+                add $t6, $t6, $t0       # add this horizontal offset to $t0 (base address)
+                li $t9, 24
+                multu $t7, $t9          # multiply the Y coordinate by 24 to get the vertical offset
+                mflo $t7                # only need the least significant bits
+                add $t6, $t6, $t7       # add the vertical offset. t6 = address in memory
+                
+                sw $t4, 0($t6)
+                
+                addi $t5, $t5, 1
+                j clear_gems_loop_start
+                
+	        clear_gems_loop_end:
+	    sb $zero, death_note_length
+	   
 	# 3. Draw the screen
+	draw_the_screen:
 	jal draw_grid
 	jal draw_skydiver
 	# 4. Sleep
@@ -914,16 +952,6 @@ zap_gems:
         lb $t6, 0($t4)  # value at this part of the list (x coordinate)
         lb $t7, 0($t5)  # value at this part of the list (y coordinate)
         
-        lbu $t8, temporary_list_length  # offset
-        # store x in temporary list
-        la $t9, temporary_list_x
-        add $t9, $t9, $t8   #add offset, this is the address in the temporary list for x variable
-        sb $t6, 0($t9)  # store x coordinate
-        #then repeat for y
-        la $t9, temporary_list_y
-        add $t9, $t9, $t8   #add offset, this is the address in the temporary list for y variable
-        sb $t7, 0($t9)  # store y coordinate
-        
         # i ran out of variables ig ill use the stack. keep $t6 and $t7 for x and y
         addi $sp, $sp, -4               # move the stack pointer to an empty location
         sw $t1, 0($sp)                  # push $t1 onto the stack
@@ -969,6 +997,19 @@ zap_gems:
             add $a2, $t2, $zero
             jal get_next
             #use $v0, $v1
+            
+            li $t8, 0  # length of list should be reset to 0
+            # store x in temporary list
+            la $t9, temporary_list_x
+            add $t9, $t9, $t8   #this is the address in the temporary list for x variable
+            sb $t6, 0($t9)  # store x coordinate
+            #then repeat for y
+            la $t9, temporary_list_y
+            add $t9, $t9, $t8   #this is the address in the temporary list for y variable
+            sb $t7, 0($t9)  # store y coordinate
+            
+            addi $t8, $t8, 1    # increment length of the list
+            sb $t8, temporary_list_length   # update in memory
             
             # finally, call the recursive check function, which takes the new x,new y, colour, i, and 1 as arguments and returns nothing
             # a0 is colour, a1 is i (direction), a2 is 1 (count)
@@ -1047,8 +1088,8 @@ zap_gems:
         addi $t2, $t2, 1
         j zap_gems_loop_start
     zap_gems_loop_end:
-        # set all the lists to empty again maybe
         sb $zero, sus_list_length
+        sb $zero, temporary_list_length
     # recover from stack
     lw $t0, 0($sp)                  # pop $t0 from the stack
     addi $sp, $sp, 4                # move the stack pointer to the top stack element
@@ -1179,7 +1220,7 @@ check:
                 lb $t9, 0($t9)  # value at this part of the list (y coordinate)
                 
                 lbu $t5, death_note_length
-                add $t5, $t5, $t1   # offset for death note
+                #add $t5, $t5, $t1   # offset for death note
                 add $t0, $t5, $t6   # address for x value
                 sb $t8, 0($t0)
                 add $t0, $t5, $t7   # address for y value
@@ -1199,6 +1240,20 @@ check:
             sb $zero, temporary_list_length
         b end_of_check_function
     if_colours_matching:
+        # add this gem to the temporary list:
+        
+        lbu $t8, temporary_list_length  # offset
+        # store x in temporary list
+        la $t9, temporary_list_x
+        add $t9, $t9, $t8   #add offset, this is the address in the temporary list for x variable
+        sb $v0, 0($t9)  # store x coordinate
+        #then repeat for y
+        la $t9, temporary_list_y
+        add $t9, $t9, $t8   #add offset, this is the address in the temporary list for y variable
+        sb $v1, 0($t9)  # store y coordinate
+        addi $t8, $t8, 1    # increment length of the list
+        sb $t8, temporary_list_length   # update in memory
+        
         # save the current arguments
         addi $sp, $sp, -4               # move the stack pointer to an empty location
         sw $a0, 0($sp)                  # push $a0 onto the stack
@@ -1252,7 +1307,7 @@ sleep:
 # Terminate program gracefully
 exit:
     li $v0, 10              # terminate the program gracefully
-                            #                           ↑ yo wtf says this mf thinks he in lit sybau
+                                #                           ↑ yo wtf says this mf thinks he in lit sybau
     lw $t0, GRAY
     li $t1, 0x10008440
     li $t2, 0x10008740
