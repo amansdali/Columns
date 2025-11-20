@@ -985,8 +985,6 @@ zap_gems:
             beq $s7, $s6, skipReseta
             beq $s7, $s5, skipReseta
             beq $s7, $s4, skipReseta
-            li $s4, 8
-            beq $s7, $s4, skipReseta
             # if not s7 = 2,4,6 (AKA first of the pairs of directions)
             li $t8, 0
             li $a3, 0
@@ -1300,7 +1298,7 @@ check:
         # store x in temporary list
         la $t9, temporary_list_x
         add $t9, $t9, $t8   #add offset, this is the address in the temporary list for x variable
-        sb $v0, 0($t9)  # store x coordinate of found pixel in  directiohn
+        sb $v0, 0($t9)  # store x coordinate
         #then repeat for y
         la $t9, temporary_list_y
         add $t9, $t9, $t8   #add offset, this is the address in the temporary list for y variable
