@@ -42,6 +42,8 @@ GRAY:
     .word 0x00808080
 BLACK:
     .word 0x00000000
+DUST:
+    .word 0x00c9a9a6
 
 ##############################################################################
 # Mutable Data
@@ -898,6 +900,9 @@ game_loop:
        lbu $t9, death_note_length
        beq $t9, 0, draw_the_screen  # if hit list empty, skip to next step
            # else if the hit list is not empty
+           jal mark_gems
+           jal draw_grid
+	       jal sleeeeeep
            jal execute_gems
            jal drop_gems
            jal add_ALL_to_sus_list
@@ -1078,7 +1083,7 @@ zap_gems:
             beq $s7, $s6, skipReset
             beq $s7, $s5, skipReset
             beq $s7, $s4, skipReset
-             li $s6, 8
+            li $s6, 8
             beq $s7, $s6, skipReset
             li $a3, 1
             skipReset:
@@ -1352,6 +1357,46 @@ check:
     addi $sp, $sp, 4                # move the stack pointer to the top stack element
     jr $ra
 
+# 'marks' all the gems given by the coordinates from death_note_x, death_note_y
+# uses all the t registers
+mark_gems:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
+
+    la $t0, grid    # grid of the colour in each tile on the playing field
+    lbu $t1, death_note_length
+    la $t2, death_note_x
+    la $t3, death_note_y
+    lw $t4, DUST
+       
+    # for loop that iterates until reached end of list, marks gems by painting them the DUST colour
+    li $t5, 0  # index/iteration number
+    mark_gems_loop_start:
+        beq $t5, $t1, mark_gems_loop_end # if reached end of list, end loop
+        add $t6, $t2, $t5   # address of the place in the x list we are at, $t5 is the offset
+        add $t7, $t3, $t5   # address of the place in the y list we are at, $t5 is the offset
+        lbu $t6, 0($t6)  # value at this part of the list (x coordinate)
+        lbu $t7, 0($t7)  # value at this part of the list (y coordinate)
+        
+        # get the address in the grid that we want to change
+        sll $t6, $t6, 2         # multiply the X coordinate by 4 to get the horizontal offset
+        add $t6, $t6, $t0       # add this horizontal offset to $t0 (base address)
+        li $t9, 24
+        multu $t7, $t9          # multiply the Y coordinate by 24 to get the vertical offset
+        mflo $t7                # only need the least significant bits
+        add $t6, $t6, $t7       # add the vertical offset. t6 = address in memory
+        
+        sw $t4, 0($t6)          #write colour over pixel to clear
+        
+        addi $t5, $t5, 1
+        j mark_gems_loop_start
+        
+    mark_gems_loop_end:
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    jr $ra
+
 # clears all the gems given by the coordinates from death_note_x, death_note_y
 # uses all the t registers
 execute_gems:
@@ -1410,9 +1455,6 @@ drop_gems:
     drop_gems_while_loop_start:
         beq $t0, 0, drop_gems_while_loop_end
         
-        jal draw_grid
-    	jal sleeeep
-    	
         li $t0, 0
         li $t2, 0  # start y value (to subtract from 11)
         li $t3, 6  # end x coord exclusive
@@ -1463,6 +1505,9 @@ drop_gems:
                 addi $t2, $t2, 1
                 j drop_gems_loop_y_start
         drop_gems_loop_y_end:
+        
+            jal draw_grid
+    	    jal sleeeep
             j drop_gems_while_loop_start
     drop_gems_while_loop_end:
     # recover from stack
@@ -1607,7 +1652,13 @@ sleep:
 
 sleeeep:
     li $v0, 32              # command for sleep
-    li $a0, 100              # number of milliseconds (1000 = 1 second)
+    li $a0, 300              # number of milliseconds (1000 = 1 second)
+    syscall
+    jr $ra
+    
+sleeeeeep:
+    li $v0, 32              # command for sleep
+    li $a0, 500              # number of milliseconds (1000 = 1 second)
     syscall
     jr $ra
             
