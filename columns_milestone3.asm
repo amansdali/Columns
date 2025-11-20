@@ -1654,7 +1654,7 @@ rand_num:
 # Sleep
 sleep:
     li $v0, 32              # command for sleep
-    li $a0, 10              # number of milliseconds (1000 = 1 second)
+    li $a0, 50              # number of milliseconds (1000 = 1 second)
     syscall
     jr $ra
 
