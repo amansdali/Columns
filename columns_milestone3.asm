@@ -1300,7 +1300,7 @@ check:
                 j append_temp_list_to_death_note_loop_start
                 
             append_temp_list_to_death_note_loop_end:
-                sb $zero, temporary_list_length
+                #sb $zero, temporary_list_length
             b end_of_check_function
 
         count_less_than_three:
