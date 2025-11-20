@@ -1249,6 +1249,13 @@ check:
     sw $ra, 0($sp)                  # push $ra onto the stack
     
     la $t0, grid    # base address of colour grid
+    
+    # if x or y out of bounds
+    beq $v0, -1, else_colours_not_match_or_invalid_tile
+    beq $v0, 6, else_colours_not_match_or_invalid_tile
+    beq $v1, -1, else_colours_not_match_or_invalid_tile
+    beq $v1, 13, else_colours_not_match_or_invalid_tile
+    
     # get the colour from the grid using the x,y coords
     # maybe we can make this a function later
     sll $t1, $v0, 2         # multiply the X coordinate by 4 to get the horizontal offset
@@ -1261,6 +1268,7 @@ check:
     
     beq $a0, $t5, if_colours_matching
     # else (base case: colours not matching)
+        else_colours_not_match_or_invalid_tile:
         slt $t0, $a3, 3 # 1 if count < 3, 0 if count >= 3
         bne $t0, $zero, count_less_than_three
             #count is >= 3 in this branch:
