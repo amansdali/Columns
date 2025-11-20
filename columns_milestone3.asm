@@ -1078,6 +1078,8 @@ zap_gems:
             beq $s7, $s6, skipReset
             beq $s7, $s5, skipReset
             beq $s7, $s4, skipReset
+             li $s6, 8
+            beq $s7, $s6, skipReset
             li $a3, 1
             skipReset:
             jal check
