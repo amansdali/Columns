@@ -900,6 +900,7 @@ game_loop:
            # else if the hit list is not empty
            jal execute_gems
            jal drop_gems
+           jal add_ALL_to_sus_list
            jal zap_gems
            j update_tile_states
 	   
@@ -1018,8 +1019,6 @@ zap_gems:
             beq $s7, $s6, skipReseta
             beq $s7, $s5, skipReseta
             beq $s7, $s4, skipReseta
-            li $s6, 8
-            beq $s7, $s6, skipReseta
             # if not s7 = 2,4,6 (AKA first of the pairs of directions)
             li $t8, 0
             li $a3, 0
@@ -1468,7 +1467,123 @@ drop_gems:
     
     jr $ra
 
+# add a given x,y coordinate to the sus list
 add_to_sus_list:
+    jr $ra
+    
+# add all gems in the grid to the sus list
+add_ALL_to_sus_list:
+    # save to stack
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)                  # push $ra onto the stack
+    
+    li $t1, 0  # start x coord (at top left corner)
+    li $t3, 6  # end x coord exclusive
+    li $t4, 13   # end y coord exclusive
+    la $t5, grid # base address of colour grid
+    
+    # double for loop that loops through the grid
+    sus_grid_loop_x_start:
+        beq $t1, $t3, sus_grid_loop_x_end
+        li $t2, 0   # start y coord
+        sus_grid_loop_y_start:
+            beq $t2, $t4, sus_grid_loop_y_end
+            addi $a0, $t1, 0     # set X coordinate
+            add $a1, $t2, 0     # set Y coordinate
+            
+            # get the colour from the grid using the x,y coords
+            sll $t6, $t1, 2         # multiply the X coordinate by 4 to get the horizontal offset
+            add $t7, $t6, $t5       # add this horizontal offset to $t5, store the result in $t7
+            li $t8, 24
+            multu $t8, $t2         # multiply the Y coordinate by 24 to get the vertical offset
+            mflo $t9    # only need the least significant bits
+            add $t7, $t7, $t9   # add the vertical offset to t7
+            lw $a2, 0($t7)  #finally we can get the colour at the given x and y coordinates and store it in $a2
+            
+            # stack stuff
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t1, 0($sp)                  # push $t1 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t2, 0($sp)                  # push $t2 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t3, 0($sp)                  # push $t3 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t4, 0($sp)                  # push $t4 onto the stack
+            addi $sp, $sp, -4               # move the stack pointer to an empty location
+            sw $t5, 0($sp)                  # push $t5 onto the stack
+            addi $sp, $sp, -4
+            sw $t6, 0($sp)
+            addi $sp, $sp, -4
+            sw $t7, 0($sp)
+            addi $sp, $sp, -4
+            sw $t8, 0($sp)
+            addi $sp, $sp, -4
+            sw $t9, 0($sp)
+            addi $sp, $sp, -4
+            sw $t0, 0($sp)
+            addi $sp, $sp, -4
+            sw $a0, 0($sp)
+            addi $sp, $sp, -4
+            sw $a1, 0($sp)
+            addi $sp, $sp, -4
+            sw $a2, 0($sp)
+            
+            lw $t1 BLACK
+            beq $a2, $t1, done_adding_or_empty_tile
+                # if not an empty tile, add coords to the list
+                la $t9, sus_list_x  # address of sus_list_x
+                la $t0, sus_list_y  # address for y
+                
+                lbu $t1, sus_list_length
+                
+                add $t6, $t1, $t9   # address of the place in the x list to add the gem, $t1 is the offset
+                add $t2, $t1, $t0   # address of the place in the y list to add the gem, $t1 is the offset
+                sb $a0, 0($t6)      # add the x coord of the gem to the sus list for x
+                sb $a1, 0($t2)      # add the y coord of the gem to the sus list for y
+                
+                addi $t1, $t1, 1
+                sb $t1, sus_list_length # length of the list increments
+            done_adding_or_empty_tile:
+            
+            # unstack stuff
+            lw $a2, 0($sp)
+            addi $sp, $sp, 4
+            lw $a1, 0($sp)
+            addi $sp, $sp, 4
+            lw $a0, 0($sp)
+            addi $sp, $sp, 4
+            lw $t0, 0($sp)
+            addi $sp, $sp, 4
+            lw $t9, 0($sp)
+            addi $sp, $sp, 4
+            lw $t8, 0($sp)
+            addi $sp, $sp, 4
+            lw $t7, 0($sp)
+            addi $sp, $sp, 4
+            lw $t6, 0($sp)
+            addi $sp, $sp, 4
+            lw $t5, 0($sp)                  # pop $t5 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t4, 0($sp)                  # pop $t4 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t3, 0($sp)                  # pop $t3 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t2, 0($sp)                  # pop $t2 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t1, 0($sp)                  # pop $t1 from the stack
+            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            
+            addi $t2, $t2, 1
+            j sus_grid_loop_y_start
+        sus_grid_loop_y_end:
+        addi $t1, $t1, 1
+        j sus_grid_loop_x_start
+    sus_grid_loop_x_end:
+    
+    # recover from stack
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    
     jr $ra
     
 # Generate a random integer
