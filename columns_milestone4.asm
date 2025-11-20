@@ -707,8 +707,24 @@ draw_grid:
     
     jr $ra
 
+# clears the keyboard input list thing so it only triggers one key input per loop
+clear_keyboard_inputs:
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
+    
+    clear_keyboard_loop_start:
+        lw $t1, ADDR_KBRD   # get address of keyboard input
+        lw $t2, 0($t1)      # load first word from keyboard
+        beq $t2, 0, clear_keyboard_loop_end
+        lw $t2, 4($t1)      # load second word from keyboard
+        
+        j clear_keyboard_loop_start
+    clear_keyboard_loop_end:
+    jr $ra
+    
 # game loop. needs no initial register values.
 game_loop:
+
     # 1a. Check if key has been pressed
     jal is_key_pressed  # sets v1 to 1 if there is keyboard input
     beq $v1, 1, if_keyboard_input
@@ -907,14 +923,14 @@ game_loop:
            jal add_ALL_to_sus_list
            jal zap_gems
            j update_tile_states
-	   
+
 	# 3. Draw the screen
 	draw_the_screen:
 	jal draw_grid
 	jal draw_skydiver
+	jal clear_keyboard_inputs
 	# 4. Sleep
 	jal sleep
-
     # 5. Go back to Step 1
     j game_loop
 
