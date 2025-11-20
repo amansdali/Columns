@@ -923,10 +923,10 @@ zap_gems:
         li $s7, 0 # track if checked direction is a multiple of 2 for correct diametric length check
         
         beq $t2, $t3, zap_gems_loop_end # if reached end of list, end loop
-        add $t4, $t0, $t2   # address of the place in the x list we are at, $t2 is the offset
-        add $t5, $t1, $t2   # address of the place in the y list we are at, $t2 is the offset
-        lb $t6, 0($t4)  # value at this part of the list (x coordinate)
-        lb $t7, 0($t5)  # value at this part of the list (y coordinate)
+        add $t4, $t0, $t2   # address of the place in the sus x list we are at, $t2 is the offset
+        add $t5, $t1, $t2   # address of the place in the sus y list we are at, $t2 is the offset
+        lb $t6, 0($t4)  # value at this part of the list (x coordinate thats sus)
+        lb $t7, 0($t5)  # value at this part of the list (y coordinate thats sus)
         
         # i ran out of variables ig ill use the stack. keep $t6 and $t7 for x and y
         addi $sp, $sp, -4               # move the stack pointer to an empty location
@@ -978,19 +978,36 @@ zap_gems:
             jal get_next
             
             #use $v0, $v1
-            
-            li $t8, 0  # length of list should be reset to 0
-            # store x in temporary list
+            # below section not very organized b8ut works and IJM NOT TOUCHING IT ANYMORE
+            li $s6, 6
+            li $s5, 4
+            li $s4, 2
+            beq $s7, $s6, skipReseta
+            beq $s7, $s5, skipReseta
+            beq $s7, $s4, skipReseta
+            # if not s7 = 2,4,6 (AKA first of the pairs of directions)
+            li $t8, 0
+            li $a3, 0
             la $t9, temporary_list_x
             add $t9, $t9, $t8   #this is the address in the temporary list for x variable
-            sb $t6, 0($t9)  # store x coordinate
+            sb $t6, 0($t9)  # store current x coordinate (explore / check storage of coordinates to temp list later in check)
             #then repeat for y
             la $t9, temporary_list_y
             add $t9, $t9, $t8   #this is the address in the temporary list for y variable
             sb $t7, 0($t9)  # store y coordinate
             
             addi $t8, $t8, 1    # increment length of the list
+            addi $a3, $a3, 1
             sb $t8, temporary_list_length   # update in memory
+            b cont
+            skipReseta:
+            # dont mess with temp len if its second of the bunch
+            
+            
+            add $t8, $a3, $zero  
+            cont:
+            # store x in temporary list
+            
             
             # finally, call the recursive check function, which takes the new x,new y, colour, i, and 1 as arguments and returns nothing
             # a0 is colour, a1 is i (direction), a2 is 1 (count)
