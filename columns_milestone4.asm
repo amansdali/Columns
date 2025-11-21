@@ -473,6 +473,7 @@ generate_gems:
             lw $t1, PURPLE
             j generate_gems_condition_end
         generate_gems_if_6:
+            # if the random number is 6, get another random number from 0-6. if its 6 again, make the gem PINK yippee
             jal rand_num
             add $t1, $a0, $zero
             
@@ -972,6 +973,7 @@ game_loop:
            jal draw_grid
            jal death_animation
            jal execute_gems
+           jal mark_gems
            jal drop_gems
            jal add_ALL_to_sus_list
            jal zap_gems
@@ -1334,13 +1336,16 @@ check:
     add $t2, $t2, $t4   # add the vertical offset to t2
     lw $t5, 0($t2)  #finally we can get the colour at the given x and y coordinates and store it in $t5
     
+    
+    lw $t8, BLACK
+    beq $t8, $t5, else_colours_not_match_or_invalid_tile
     # check if colours matching
     beq $a0, $t5, if_colours_matching
     # otherwise if colour is pink (counts as colours matching)
     lw $t8, PINK
     beq $t8, $t5, if_colours_matching
 
-    # else (base case: colours not matching and colour isnt pink)
+    # else (base case: tile is black or colours not matching and colour isnt pink)
         else_colours_not_match_or_invalid_tile:
         slt $t0, $a3, 3 # 1 if count < 3, 0 if count >= 3
         bne $t0, $zero, count_less_than_three
@@ -1438,7 +1443,7 @@ check:
     addi $sp, $sp, 4                # move the stack pointer to the top stack element
     jr $ra
 
-# 'marks' all the gems given by the coordinates from death_note_x, death_note_y
+# 'marks' all the gems in the same row as a cleared pink gem pink
 # uses all the t registers
 mark_gems:
     # save to stack
@@ -1446,10 +1451,9 @@ mark_gems:
     sw $ra, 0($sp)                  # push $ra onto the stack
 
     la $t0, grid    # grid of the colour in each tile on the playing field
-    lbu $t1, death_note_length
-    la $t2, death_note_x
-    la $t3, death_note_y
-    lw $t4, DUST
+    lbu $t1, cleared_pinks_length
+    la $t2, cleared_pinks_x
+    la $t3, cleared_pinks_y
        
     # for loop that iterates until reached end of list, marks gems by painting them the DUST colour
     li $t5, 0  # index/iteration number
@@ -1457,23 +1461,84 @@ mark_gems:
         beq $t5, $t1, mark_gems_loop_end # if reached end of list, end loop
         add $t6, $t2, $t5   # address of the place in the x list we are at, $t5 is the offset
         add $t7, $t3, $t5   # address of the place in the y list we are at, $t5 is the offset
-        lbu $t6, 0($t6)  # value at this part of the list (x coordinate)
-        lbu $t7, 0($t7)  # value at this part of the list (y coordinate)
+        li $t6, 0           # initial x coordinate
+        lbu $t7, 0($t7)     # value at this part of the list (y coordinate)
         
-        # get the address in the grid that we want to change
-        sll $t6, $t6, 2         # multiply the X coordinate by 4 to get the horizontal offset
-        add $t6, $t6, $t0       # add this horizontal offset to $t0 (base address)
-        li $t9, 24
-        multu $t7, $t9          # multiply the Y coordinate by 24 to get the vertical offset
-        mflo $t7                # only need the least significant bits
-        add $t6, $t6, $t7       # add the vertical offset. t6 = address in memory
-        
-        sw $t4, 0($t6)          #write colour over pixel to clear
-        
+        # iterate through every tile in this row
+        mark_gem_pink_loop_start:
+        beq $t6, 6, mark_gem_pink_loop_end
+            # get the address in the grid that we want to change
+            sll $t8, $t6, 2         # multiply the X coordinate by 4 to get the horizontal offset
+            add $t8, $t8, $t0       # add this horizontal offset to $t0 (base address)
+            li $t9, 24
+            multu $t7, $t9          # multiply the Y coordinate by 24 to get the vertical offset
+            mflo $t9                # only need the least significant bits
+            add $t8, $t8, $t9       # add the vertical offset. t8 = address in memory
+            
+            lw $t9, 0($t8)  # get the value at this coordinate
+            lw $t4, BLACK
+            beq $t4, $t9, if_no_gem_here
+                # else
+                lw $t4, PINK
+                sw $t4, 0($t8)          # make it pink!
+                
+                addi $sp, $sp, -4
+                sw $t0, 0($sp)
+                addi $sp, $sp, -4
+                sw $t1, 0($sp)
+                addi $sp, $sp, -4
+                sw $t2, 0($sp)
+                addi $sp, $sp, -4
+                sw $t3, 0($sp)
+                addi $sp, $sp, -4
+                sw $t4, 0($sp)
+                addi $sp, $sp, -4
+                sw $t5, 0($sp)
+                addi $sp, $sp, -4
+                sw $t6, 0($sp)
+                addi $sp, $sp, -4
+                sw $t7, 0($sp)
+                addi $sp, $sp, -4
+                sw $t8, 0($sp)
+                addi $sp, $sp, -4
+                sw $t9, 0($sp)
+       
+                jal draw_grid
+                jal sleeeep
+                
+                lw $t9, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t8, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t7, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t6, 0($sp)
+                addi $sp, $sp, 4
+                lw $t5, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t4, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t3, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t2, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t1, 0($sp)
+                addi $sp, $sp, 4 
+                lw $t0, 0($sp)
+                addi $sp, $sp, 4
+                
+            if_no_gem_here:
+            addi $t6, $t6, 1        # next x coordinate
+            j mark_gem_pink_loop_start
+        mark_gem_pink_loop_end:
         addi $t5, $t5, 1
         j mark_gems_loop_start
         
     mark_gems_loop_end:
+    
+    li $t1, 0
+    sb $t1, cleared_pinks_length
+    
     lw $ra, 0($sp)                  # pop $ra from the stack
     addi $sp, $sp, 4                # move the stack pointer to the top stack element
     jr $ra
@@ -1654,7 +1719,6 @@ execute_gems:
     lbu $t1, death_note_length
     la $t2, death_note_x
     la $t3, death_note_y
-    lw $t4, BLACK
        
     # for loop that iterates until reached end of list, clears gems from the death note
     li $t5, 0  # index/iteration number
@@ -1673,6 +1737,64 @@ execute_gems:
         mflo $t7                # only need the least significant bits
         add $t6, $t6, $t7       # add the vertical offset. t6 = address in memory
         
+        lw $t9, 0($t6)          # get the current colour at this location
+        lw $t4, PINK
+        beq $t9, $t4, add_to_cleared_pinks
+        b skip_add_to_cleared_pinks
+        add_to_cleared_pinks:
+            addi $sp, $sp, -4
+            sw $t0, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t1, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t2, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t3, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t4, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t5, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t6, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t7, 0($sp) 
+            
+                # get x and y value again
+                add $t6, $t2, $t5   # address of the place in the x list we are at, $t5 is the offset
+                add $t7, $t3, $t5   # address of the place in the y list we are at, $t5 is the offset
+                lbu $t6, 0($t6)  # value at this part of the list (x coordinate)
+                lbu $t7, 0($t7)  # value at this part of the list (y coordinate)
+                
+                # add these coordinates to the list of cleared pink tiles
+                lbu $t1, cleared_pinks_length
+                la $t2, cleared_pinks_x
+                la $t3, cleared_pinks_y
+
+                add $t0, $t2, $t1   # address for x value
+                sb $t6, 0($t0)
+                add $t0, $t3, $t1   # address for y value
+                sb $t7, 0($t0)
+                addi $t1, $t1, 1
+                sb $t1, cleared_pinks_length
+                
+            lw $t7, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t6, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t5, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t4, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t3, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t2, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t1, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t0, 0($sp)
+            addi $sp, $sp, 4 
+        skip_add_to_cleared_pinks:
+        lw $t4, BLACK
         sw $t4, 0($t6)          #write black over pixel to clear
         
         addi $t5, $t5, 1
@@ -1898,7 +2020,7 @@ sleep:
 
 sleeeep:
     li $v0, 32              # command for sleep
-    li $a0, 300              # number of milliseconds (1000 = 1 second)
+    li $a0, 200              # number of milliseconds (1000 = 1 second)
     syscall
     jr $ra
     
