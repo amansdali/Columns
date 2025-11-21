@@ -7,6 +7,8 @@
 # We assert that the code submitted here is entirely our own 
 # creation, and will indicate otherwise when it is not.
 #
+# We have adapted code from the starter files and the draw_rect file from class for this project
+#
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       256
 # - Unit height in pixels:      256
