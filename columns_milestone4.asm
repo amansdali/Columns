@@ -44,6 +44,8 @@ BLACK:
     .word 0x00000000
 DUST:
     .word 0x00c9a9a6
+PINK:
+    .word 0x00ff8a9d
 
 ##############################################################################
 # Mutable Data
@@ -72,11 +74,17 @@ death_note_x: # a list of all the x coordinates of gems to be zapped
 death_note_y: # a list of all the y coordinates of gems to be zapped
                 # the 'confirmed' list from the plan
     .space 78
+cleared_pinks_x: # a list of all the x coordinates of pink gems that have been cleared
+    .space 78
+cleared_pinks_y: # a list of all the y coordinates of pink gems that have been cleared
+    .space 78
 sus_list_length: 
     .byte 0x00
 temporary_list_length:
     .byte 0x00
 death_note_length:
+    .byte 0x00
+cleared_pinks_length:
     .byte 0x00
 curr_x: # the x position of the player in the 6x13 grid
     .byte 0x02
@@ -444,6 +452,8 @@ generate_gems:
         beq $t1, $t2, generate_gems_if_4
         li $t2, 5
         beq $t1, $t2, generate_gems_if_5
+        li $t2, 6
+        beq $t1, $t2, generate_gems_if_6
         generate_gems_if_0:
             lw $t1, RED
             j generate_gems_condition_end
@@ -462,6 +472,45 @@ generate_gems:
         generate_gems_if_5:
             lw $t1, PURPLE
             j generate_gems_condition_end
+        generate_gems_if_6:
+            jal rand_num
+            add $t1, $a0, $zero
+            
+            li $t2, 0
+            beq $t1, $t2, generate_gems_if_0_2
+            li $t2, 1
+            beq $t1, $t2, generate_gems_if_1_2
+            li $t2, 2
+            beq $t1, $t2, generate_gems_if_2_2
+            li $t2, 3
+            beq $t1, $t2, generate_gems_if_3_2
+            li $t2, 4
+            beq $t1, $t2, generate_gems_if_4_2
+            li $t2, 5
+            beq $t1, $t2, generate_gems_if_5_2
+            li $t2, 6
+            beq $t1, $t2, generate_gems_if_6_2
+            generate_gems_if_0_2:
+                lw $t1, RED
+                j generate_gems_condition_end
+            generate_gems_if_1_2:
+                lw $t1, ORANGE
+                j generate_gems_condition_end
+            generate_gems_if_2_2:
+                lw $t1, YELLOW
+                j generate_gems_condition_end
+            generate_gems_if_3_2:
+                lw $t1, GREEN
+                j generate_gems_condition_end
+            generate_gems_if_4_2:
+                lw $t1, BLUE
+                j generate_gems_condition_end
+            generate_gems_if_5_2:
+                lw $t1, PURPLE
+                j generate_gems_condition_end
+            generate_gems_if_6_2:
+                lw $t1, PINK
+                j generate_gems_condition_end
         generate_gems_condition_end:
             # set the gem to the generated colour
             sll $t3, $t4, 2     # offset is index*4
@@ -868,33 +917,37 @@ game_loop:
 	# 2b. Update locations (capsules)
 	skydiver_landed:   # if the stack of gems has landed, start the algorithm for clearing gems
 	    # now, the skydiver should be landed. add the skydiver to sus_list and start the algorithm. at this point, the sus_list should be empty.
-	    li $t4, 0  # iteration variable for loop
-        li $t5, 3   # ending value for loop
-        lbu $t7, curr_x  # current x coordinate
-        lbu $t8, curr_y  # current y coordinate
+	    
+	    ##### replaced the following lines of code with a call to add_ALL_to_sus_list
+	    #li $t4, 0  # iteration variable for loop
+        #li $t5, 3   # ending value for loop
+        #lbu $t7, curr_x  # current x coordinate
+        #lbu $t8, curr_y  # current y coordinate
         
-        la $t9, sus_list_x  # address of sus_list_x (list of tiles to check, which is empty rn and so we need to add the address of the three gems now)
-        la $t0, sus_list_y  # same thing but for y coordinates
+        #la $t9, sus_list_x  # address of sus_list_x (list of tiles to check, which is empty rn and so we need to add the address of the three gems now)
+        #la $t0, sus_list_y  # same thing but for y coordinates
     
         # adds all gems that have fallen into sus list for inspection 🤨 
-        add_skydiver_to_sus_list_loop_start:
-            beq $t4, $t5, add_skydiver_to_sus_list_loop_end # ends when i = 3
-            
-            add $t6, $t4, $t9   # address of the place in the x list to add the gem, $t4 is the offset
-            add $t2, $t4, $t0   # address of the place in the y list to add the gem, $t4 is the offset
-            sb $t7, 0($t6)      # add the x coord of the gem to the sus list for x
-            sb $t8, 0($t2)      # add the y coord of the gem to the sus list for y
-            addi $t8, $t8, 1    # y coordinate increments
-            
-            lbu $t1, sus_list_length
-            addi $t1, $t1, 1
-            sb $t1, sus_list_length # length of the list increments
-            
-            addi $t4, $t4, 1    # i increments
-            j add_skydiver_to_sus_list_loop_start
-        add_skydiver_to_sus_list_loop_end:
-            # now start the algorithm
-            jal zap_gems
+        #add_skydiver_to_sus_list_loop_start:
+        #    beq $t4, $t5, add_skydiver_to_sus_list_loop_end # ends when i = 3
+        #    
+        #   add $t6, $t4, $t9   # address of the place in the x list to add the gem, $t4 is the offset
+        #    add $t2, $t4, $t0   # address of the place in the y list to add the gem, $t4 is the offset
+        #    sb $t7, 0($t6)      # add the x coord of the gem to the sus list for x
+        #    sb $t8, 0($t2)      # add the y coord of the gem to the sus list for y
+        #    addi $t8, $t8, 1    # y coordinate increments
+        #    
+        #    lbu $t1, sus_list_length
+        #    addi $t1, $t1, 1
+        #    sb $t1, sus_list_length # length of the list increments
+        #    
+        #    addi $t4, $t4, 1    # i increments
+        #    j add_skydiver_to_sus_list_loop_start
+        #add_skydiver_to_sus_list_loop_end:
+        
+        # now start the algorithm
+        jal add_ALL_to_sus_list
+        jal zap_gems
         
         # reset the skydiver
         jal generate_gems
@@ -1281,8 +1334,13 @@ check:
     add $t2, $t2, $t4   # add the vertical offset to t2
     lw $t5, 0($t2)  #finally we can get the colour at the given x and y coordinates and store it in $t5
     
+    # check if colours matching
     beq $a0, $t5, if_colours_matching
-    # else (base case: colours not matching)
+    # otherwise if colour is pink (counts as colours matching)
+    lw $t8, PINK
+    beq $t8, $t5, if_colours_matching
+
+    # else (base case: colours not matching and colour isnt pink)
         else_colours_not_match_or_invalid_tile:
         slt $t0, $a3, 3 # 1 if count < 3, 0 if count >= 3
         bne $t0, $zero, count_less_than_three
@@ -1823,11 +1881,11 @@ add_ALL_to_sus_list:
     
     jr $ra
     
-# Generate a random integer
+# Generate a random integer between 0 and 6
 rand_num:
     li $v0, 42              # command for random number generation with a maximum
     li $a0, 0               # random number generator ID
-    li $a1, 6               # maximum value, exclusive
+    li $a1, 7               # maximum value, exclusive
     syscall                 # value is in a0
     jr $ra
 
