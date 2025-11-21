@@ -8,7 +8,6 @@
 # creation, and will indicate otherwise when it is not.
 #
 # We have adapted code from the starter files and the draw_rect file from class for this project
-#
 ######################## Bitmap Display Configuration ########################
 # - Unit width in pixels:       256
 # - Unit height in pixels:      256
@@ -1229,6 +1228,44 @@ save_stack:
     addi $sp, $sp, 4
     jr $ra
 
+# a0 is current t1
+draw_current_speed:
+    addi $sp, $sp, -4    #save t0 
+    sw $ra, 0($sp) 
+    # max speed = 13 to 0, speed = 12 to 2, etc. therefore, speed display = 14 - t1. min t1 is 0, -> max speed in increasing numbers is 14
+    # display squares from 1 to 14 count
+    li $t2, 14
+    subu $t1, $t2, $t1
+    li $t2, 1
+    li $a0, 10 # starting x coordinate for first speed pixel
+    li $a1, 6 # starting y coordinate for first speed pixel
+    
+    li $t0, 0xffffff
+    drawloop:
+        beq $t2, $t1, enddrawloop #lop tto ddraw all the square !!!
+        addi $sp, $sp, -4    #save t0 
+        sw $t0, 0($sp) 
+        addi $sp, $sp, -4    #save t1 
+        sw $t1, 0($sp) 
+        addi $sp, $sp, -4    #save t2
+        sw $t2, 0($sp) 
+        jal convert_pixel
+        lw $t2, 0($sp)                
+        addi $sp, $sp, 4          
+        lw $t1, 0($sp)                
+        addi $sp, $sp, 4     
+        lw $t0, 0($sp)
+        addi $sp, $sp, 4
+
+        sw $t0, 0( $v0 ) 
+        addi $a0, $a0, 1 # increment x coodinate by 1 space to draw next
+        
+        addi $t2, $t2, 1 #increment 1
+    j drawloop
+    enddrawloop:
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
+    jr $ra
 # the draw grid function that draws the 6x13 playing field with the gems in their locations as given by the grid variable.
 # (so it draws a black pixel if the location in the grid has no gem, and draws a gem of the corresponding colour if there is one)
 # uses the grid variable in memory, also uses a0, a1, a2
@@ -1353,20 +1390,38 @@ clear_keyboard_inputs:
     
 # game loop. uses $t0 as a counter for triggering making the stack fall
 game_loop:
-    lbu $t2, speed_decrease_counter #counter variable for decreasing speed var (increase speed), goes from 0 to 67
-    lbu $t0, speed_counter #counter var from 0 to speed var, every time reached drop gem by 1
-    lbu $t1, speed_variable
-    addi $t2, $t2, 1
+    lbu $t2, speed_decrease_counter # counter variable for decreasing speed var (increase speed), goes from 0 to 3 (or custom value in the below if condition)
+    lbu $t0, speed_counter # counter var from 0 to speed var, every time reached drop gem by 1
+    lbu $t1, speed_variable 
+    addi $t2, $t2, 1 # increase speed counter
     sb $t2, speed_decrease_counter
     bne $t2, 3, dontincreasepls # increase t2 and every 67 loops, increase speed by 1
         #increase speed
         li $t2, 0
         beq $t1, 0, skipDecrease
             addi $t1, $t1, -1
-            sb $t1, speed_variable  
+            sb $t1, speed_variable
+            addi $sp, $sp, -4    #save t0 
+            sw $t0, 0($sp) 
+            addi $sp, $sp, -4    #save t1 
+            sw $t1, 0($sp) 
+            addi $sp, $sp, -4    #save t2
+            sw $t2, 0($sp) 
+            jal draw_current_speed
+            lw $t2, 0($sp)                
+            addi $sp, $sp, 4          
+            lw $t1, 0($sp)                
+            addi $sp, $sp, 4     
+            lw $t0, 0($sp)
+            addi $sp, $sp, 4
+            
     skipDecrease:
-     li $v0, 1        # syscall: print integer
+    li $v0, 1        # syscall: print print current speed setting
     move $a0, $t1    # load value of $t1 into argument register
+    syscall
+     # print a newline so the output isn't messy
+    li $v0, 11       # print character
+    li $a0, 10       # ASCII newline
     syscall
     dontincreasepls:
     
