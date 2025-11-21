@@ -29,7 +29,7 @@ ADDR_KBRD:
 RED:
     .word 0x00ff0000
 ORANGE:
-    .word 0x00ffa500
+    .word 0x00fc7b03
 YELLOW:
     .word 0x00ffff00
 GREEN:
@@ -52,32 +52,36 @@ PINK:
 ##############################################################################
 curr_gem_clrs: # the colours of the current gems, top to bottom
     .space 12
+next_gem_clrs: # the colours of the next gems, top to bottom
+    .space 12
+saved_gem_clrs: # the colours of the saved gems, top to bottom
+    .space 12
 grid:   # the 6x13 grid representing the playing field, storing the colour in each position on the grid
     .space 312
 extra_space_for_grid:   # extra memory for the grid
     .space 80
 sus_list_x: # a list of all the x coordinates representing spots on the grid that have been moved and need to be checked
                 # the 'moved' list from the plan
-    .space 78
+    .space 156
 sus_list_y: # a list of all the y coordinates representing spots on the grid that have been moved and need to be checked
                 # the 'moved' list from the plan
-    .space 78
+    .space 156
 temporary_list_x: # a temporary list of all the x coordinates representing spots on the grid that are being checked by the algorithm for clearing gems
                 # the 'lst' list from the plan
-    .space 78
+    .space 156
 temporary_list_y: # a temporary list of all the y coordinates representing spots on the grid that are being checked by the algorithm for clearing gems
                 # the 'lst' list from the plan
-    .space 78
+    .space 156
 death_note_x: # a list of all the x coordinates of gems to be zapped
                 # the 'confirmed' list from the plan
-    .space 78
+    .space 156
 death_note_y: # a list of all the y coordinates of gems to be zapped
                 # the 'confirmed' list from the plan
-    .space 78
+    .space 156
 cleared_pinks_x: # a list of all the x coordinates of pink gems that have been cleared
-    .space 78
+    .space 156
 cleared_pinks_y: # a list of all the y coordinates of pink gems that have been cleared
-    .space 78
+    .space 156
 sus_list_length: 
     .byte 0x00
 temporary_list_length:
@@ -89,6 +93,8 @@ cleared_pinks_length:
 curr_x: # the x position of the player in the 6x13 grid
     .byte 0x02
 curr_y: # the y position of the player in the 6x13 grid
+    .byte 0x00
+stack_saved: # 1 if there is a saved stack of gems, 0 if not
     .byte 0x00
 
 ##############################################################################
@@ -104,7 +110,10 @@ main:
     lw $t0, ADDR_DSPL       # $t0 = base address for display
     
     jal generate_gems
+    jal set_curr_gems_from_next
+    jal generate_gems
     jal draw_background
+    jal draw_skydiver_jr
     jal game_loop
     
     j exit
@@ -115,11 +124,14 @@ main:
 # $v0 = returned value of the target address
 # temp registers used: $t0, $t1, $t2, $t3
 convert_pixel:
+
+    # logic for getting address of a pixel, adapted from the draw_rect example code provided in class
     lw $t0, ADDR_DSPL       # $t0 = base address for display
     sll $t2, $a0, 3         # multiply the X coordinate by 8 to get the horizontal offset
     add $t1, $t0, $t2       # add this horizontal offset to $t0, store the result in $t1
     sll $t3, $a1, 9         # multiply the Y coordinate by 512 to get the vertical offset
     add $t1, $t1, $t3  
+    
     add $v0, $t1, $zero
     jr $ra
 
@@ -134,8 +146,8 @@ convert_pixel:
 draw_pixel:
 
     # save to stack
-    addi $sp, $sp, -4               # move the stack pointer to an empty location
-    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4
+    sw $ra, 0($sp)
     
     jal convert_pixel
     add $t1, $zero, $v0 # return value
@@ -152,8 +164,8 @@ draw_pixel:
     sw $a2, 0( $t1 )        # paint the pixel
     
     # recover from stack
-    lw $ra, 0($sp)                  # pop $ra from the stack
-    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
     
     jr $ra                  # return to the calling program.
 
@@ -167,8 +179,8 @@ draw_pixel:
 # also uses $v0, $v1
 draw_gem:
     # save to stack
-    addi $sp, $sp, -4               # move the stack pointer to an empty location
-    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4        
+    sw $ra, 0($sp)              
     
     jal convert_pixel
     add $t1, $zero, $v0 # return value
@@ -198,8 +210,8 @@ draw_gem:
     sw $a2, 0( $t1 )        # paint the pixel the normal colour
     
     # recover from stack
-    lw $ra, 0($sp)                  # pop $ra from the stack
-    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $ra, 0($sp)                  
+    addi $sp, $sp, 4     
     
     jr $ra                  # return to the calling program.
 
@@ -286,14 +298,14 @@ draw_background:
         add $a1, $zero, $t3     # set Y coordinate to value of $t3
         
         # save to stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $ra, 0($sp)                  # push $ra onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $a0, 0($sp)                  # push $a0 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $a1, 0($sp)                  # push $a1 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $a2, 0($sp)                  # push $a2 onto the stack
+        addi $sp, $sp, -4               
+        sw $ra, 0($sp)                
+        addi $sp, $sp, -4          
+        sw $a0, 0($sp)                  
+        addi $sp, $sp, -4               
+        sw $a1, 0($sp)                 
+        addi $sp, $sp, -4          
+        sw $a2, 0($sp)              
         addi $sp, $sp, -4
         sw $t1, 0($sp)
         addi $sp, $sp, -4
@@ -333,17 +345,17 @@ draw_background:
         addi $sp, $sp, 4
         lw $t1, 0($sp)
         addi $sp, $sp, 4
-        lw $a2, 0($sp)                  # pop $a2 from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
-        lw $a1, 0($sp)                  # pop $a1 from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
-        lw $a0, 0($sp)                  # pop $a0 from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
-        lw $ra, 0($sp)                  # pop $ra from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
+        lw $a2, 0($sp)                 
+        addi $sp, $sp, 4       
+        lw $a1, 0($sp)        
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)         
+        addi $sp, $sp, 4              
+        lw $ra, 0($sp)                 
+        addi $sp, $sp, 4                
         
         addi $t6, $t6, 1        # increment $t6 (horizontally).
-        j background_hline_loop_start            # jump to the start of the loop
+        j background_hline_loop_start
     background_hline_loop_end:
     
     addi $t6, $t3, 1  # coordinate variable to change (y)
@@ -355,14 +367,14 @@ draw_background:
         add $a1, $zero, $t6     # set Y coordinate to value of $t6
         
         # save to stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $ra, 0($sp)                  # push $ra onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $a0, 0($sp)                  # push $a0 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $a1, 0($sp)                  # push $a1 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $a2, 0($sp)                  # push $a2 onto the stack
+        addi $sp, $sp, -4               
+        sw $ra, 0($sp)             
+        addi $sp, $sp, -4               
+        sw $a0, 0($sp)                 
+        addi $sp, $sp, -4              
+        sw $a1, 0($sp)               
+        addi $sp, $sp, -4            
+        sw $a2, 0($sp)               
         addi $sp, $sp, -4
         sw $t1, 0($sp)
         addi $sp, $sp, -4
@@ -406,28 +418,326 @@ draw_background:
         addi $sp, $sp, 4
         lw $t1, 0($sp)
         addi $sp, $sp, 4
-        lw $a2, 0($sp)                  # pop $a2 from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
-        lw $a1, 0($sp)                  # pop $a1 from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
-        lw $a0, 0($sp)                  # pop $a0 from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
-        lw $ra, 0($sp)                  # pop $ra from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
+        lw $a2, 0($sp)                
+        addi $sp, $sp, 4            
+        lw $a1, 0($sp)          
+        addi $sp, $sp, 4        
+        lw $a0, 0($sp)               
+        addi $sp, $sp, 4               
+        lw $ra, 0($sp)              
+        addi $sp, $sp, 4              
         
         addi $t6, $t6, 1        # increment $t6 (vertically).
         j background_vline_loop_start            # jump to the start of the loop
     background_vline_loop_end:
+    
+    # box for showing the next skydiver
+    # loop variables
+    li $t2, 22  # starting x coordinate
+    li $t3, 8   # starting y coordinate
+    li $t4, 27  # ending x coordinate (exclusive)
+    li $t5, 12  # ending y coordinate (inclusive)
+    add $t6, $t2, $zero  # coordinate variable to change (x)
+    
+    # draw the top and bottom horizontal lines of the rectangle
+    background_hline_loop_start2:
+        beq $t6, $t4, background_hline_loop_end2 # check if $t6 has reached the ending x coordinate
+        # set registers $a0 and $a1 to the x and y coordinates
+        add $a0, $zero, $t6     # set X coordinate to value of $t6
+        add $a1, $zero, $t3     # set Y coordinate to value of $t3
+        
+        # save to stack
+        addi $sp, $sp, -4               
+        sw $ra, 0($sp)                
+        addi $sp, $sp, -4          
+        sw $a0, 0($sp)                  
+        addi $sp, $sp, -4               
+        sw $a1, 0($sp)                 
+        addi $sp, $sp, -4          
+        sw $a2, 0($sp)              
+        addi $sp, $sp, -4
+        sw $t1, 0($sp)
+        addi $sp, $sp, -4
+        sw $t2, 0($sp)
+        addi $sp, $sp, -4
+        sw $t3, 0($sp)
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        
+        jal draw_pixel          # call the draw pixel_function.
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        add $a0, $zero, $t6     # set X coordinate to value of $t6
+        add $a1, $zero, $t5     # set Y coordinate to value of $t5
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        jal draw_pixel          # call the draw pixel_function.
+        
+        # recover from stack
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        lw $t3, 0($sp)
+        addi $sp, $sp, 4
+        lw $t2, 0($sp)
+        addi $sp, $sp, 4
+        lw $t1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a2, 0($sp)                 
+        addi $sp, $sp, 4       
+        lw $a1, 0($sp)        
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)         
+        addi $sp, $sp, 4              
+        lw $ra, 0($sp)                 
+        addi $sp, $sp, 4                
+        
+        addi $t6, $t6, 1        # increment $t6 (horizontally).
+        j background_hline_loop_start2
+    background_hline_loop_end2:
+    
+    addi $t6, $t3, 1  # coordinate variable to change (y)
+    # draw the left and right vertical lines of the rectangle
+    background_vline_loop_start2:
+        beq $t6, $t5, background_vline_loop_end2 # check if $t6 has reached the ending y coordinate
+        # set registers $a0 and $a1 to the x and y coordinates
+        add $a0, $zero, $t2     # set X coordinate to value of $t2
+        add $a1, $zero, $t6     # set Y coordinate to value of $t6
+        
+        # save to stack
+        addi $sp, $sp, -4               
+        sw $ra, 0($sp)             
+        addi $sp, $sp, -4               
+        sw $a0, 0($sp)                 
+        addi $sp, $sp, -4              
+        sw $a1, 0($sp)               
+        addi $sp, $sp, -4            
+        sw $a2, 0($sp)               
+        addi $sp, $sp, -4
+        sw $t1, 0($sp)
+        addi $sp, $sp, -4
+        sw $t2, 0($sp)
+        addi $sp, $sp, -4
+        sw $t3, 0($sp)
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        
+        jal draw_pixel          # call the draw pixel_function.
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        add $a1, $zero, $t6     # set Y coordinate to value of $t6
+        addi $a0, $t4, -1       # set X coordinate to value of $t4 - 1
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        jal draw_pixel          # call the draw pixel_function.
+        
+        # recover from stack
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        lw $t3, 0($sp)
+        addi $sp, $sp, 4
+        lw $t2, 0($sp)
+        addi $sp, $sp, 4
+        lw $t1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a2, 0($sp)                
+        addi $sp, $sp, 4            
+        lw $a1, 0($sp)          
+        addi $sp, $sp, 4        
+        lw $a0, 0($sp)               
+        addi $sp, $sp, 4               
+        lw $ra, 0($sp)              
+        addi $sp, $sp, 4              
+        
+        addi $t6, $t6, 1        # increment $t6 (vertically).
+        j background_vline_loop_start2            # jump to the start of the loop
+    background_vline_loop_end2:
+    
+    # box for showing the saved skydiver
+    # loop variables
+    li $t2, 22  # starting x coordinate
+    li $t3, 14   # starting y coordinate
+    li $t4, 27  # ending x coordinate (exclusive)
+    li $t5, 18  # ending y coordinate (inclusive)
+    add $t6, $t2, $zero  # coordinate variable to change (x)
+    
+    # draw the top and bottom horizontal lines of the rectangle
+    background_hline_loop_start3:
+        beq $t6, $t4, background_hline_loop_end3 # check if $t6 has reached the ending x coordinate
+        # set registers $a0 and $a1 to the x and y coordinates
+        add $a0, $zero, $t6     # set X coordinate to value of $t6
+        add $a1, $zero, $t3     # set Y coordinate to value of $t3
+        
+        # save to stack
+        addi $sp, $sp, -4               
+        sw $ra, 0($sp)                
+        addi $sp, $sp, -4          
+        sw $a0, 0($sp)                  
+        addi $sp, $sp, -4               
+        sw $a1, 0($sp)                 
+        addi $sp, $sp, -4          
+        sw $a2, 0($sp)              
+        addi $sp, $sp, -4
+        sw $t1, 0($sp)
+        addi $sp, $sp, -4
+        sw $t2, 0($sp)
+        addi $sp, $sp, -4
+        sw $t3, 0($sp)
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        
+        jal draw_pixel          # call the draw pixel_function.
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        add $a0, $zero, $t6     # set X coordinate to value of $t6
+        add $a1, $zero, $t5     # set Y coordinate to value of $t5
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        jal draw_pixel          # call the draw pixel_function.
+        
+        # recover from stack
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        lw $t3, 0($sp)
+        addi $sp, $sp, 4
+        lw $t2, 0($sp)
+        addi $sp, $sp, 4
+        lw $t1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a2, 0($sp)                 
+        addi $sp, $sp, 4       
+        lw $a1, 0($sp)        
+        addi $sp, $sp, 4            
+        lw $a0, 0($sp)         
+        addi $sp, $sp, 4              
+        lw $ra, 0($sp)                 
+        addi $sp, $sp, 4                
+        
+        addi $t6, $t6, 1        # increment $t6 (horizontally).
+        j background_hline_loop_start3
+    background_hline_loop_end3:
+    
+    addi $t6, $t3, 1  # coordinate variable to change (y)
+    # draw the left and right vertical lines of the rectangle
+    background_vline_loop_start3:
+        beq $t6, $t5, background_vline_loop_end3 # check if $t6 has reached the ending y coordinate
+        # set registers $a0 and $a1 to the x and y coordinates
+        add $a0, $zero, $t2     # set X coordinate to value of $t2
+        add $a1, $zero, $t6     # set Y coordinate to value of $t6
+        
+        # save to stack
+        addi $sp, $sp, -4               
+        sw $ra, 0($sp)             
+        addi $sp, $sp, -4               
+        sw $a0, 0($sp)                 
+        addi $sp, $sp, -4              
+        sw $a1, 0($sp)               
+        addi $sp, $sp, -4            
+        sw $a2, 0($sp)               
+        addi $sp, $sp, -4
+        sw $t1, 0($sp)
+        addi $sp, $sp, -4
+        sw $t2, 0($sp)
+        addi $sp, $sp, -4
+        sw $t3, 0($sp)
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        
+        jal draw_pixel          # call the draw pixel_function.
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        add $a1, $zero, $t6     # set Y coordinate to value of $t6
+        addi $a0, $t4, -1       # set X coordinate to value of $t4 - 1
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        jal draw_pixel          # call the draw pixel_function.
+        
+        # recover from stack
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        lw $t3, 0($sp)
+        addi $sp, $sp, 4
+        lw $t2, 0($sp)
+        addi $sp, $sp, 4
+        lw $t1, 0($sp)
+        addi $sp, $sp, 4
+        lw $a2, 0($sp)                
+        addi $sp, $sp, 4            
+        lw $a1, 0($sp)          
+        addi $sp, $sp, 4        
+        lw $a0, 0($sp)               
+        addi $sp, $sp, 4               
+        lw $ra, 0($sp)              
+        addi $sp, $sp, 4              
+        
+        addi $t6, $t6, 1        # increment $t6 (vertically).
+        j background_vline_loop_start3            # jump to the start of the loop
+    background_vline_loop_end3:
     jr $ra
 
 ##  The generate_gems function
-##  - Generate the three new gems with random colours to be placed. saves these colours in curr_gem_clrs
+##  - Generate the three new gems with random colours to be placed. saves these colours in next_gem_clrs
 # Temp registers used: t1, t2, t3, t4, t5, t6, t9
 # also uses v0, a0, a1
 generate_gems:
     # save to stack
-    addi $sp, $sp, -4               # move the stack pointer to an empty location
-    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4             
+    sw $ra, 0($sp)             
     
     li $t4, 0
     li $t5, 3
@@ -435,11 +745,11 @@ generate_gems:
     generate_gems_loop_start:
     beq $t4, $t5, generate_gems_loop_end
     
-        la $t9, curr_gem_clrs
+        la $t9, next_gem_clrs
      
         jal rand_num
         add $t1, $a0, $zero
-        
+
         li $t2, 0
         beq $t1, $t2, generate_gems_if_0
         li $t2, 1
@@ -521,10 +831,81 @@ generate_gems:
         j generate_gems_loop_start
     generate_gems_loop_end:
         # recover from stack
-        lw $ra, 0($sp)                  # pop $ra from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
+        lw $ra, 0($sp)             
+        addi $sp, $sp, 4           
         
         jr $ra
+
+# sets the current gem colours to the values from the next_gem_clrs list
+# uses temporary registers 0,1,3,4,5,6,7
+set_curr_gems_from_next:
+    la $t0, next_gem_clrs
+    la $t1, curr_gem_clrs
+    li $t4, 0
+    li $t5, 3
+    
+    set_gems_loop_start:
+    beq $t4, $t5, set_gems_loop_end
+     
+        sll $t3, $t4, 2     # offset is index*4
+        add $t6, $t3, $t0   # address of the colour to get
+        lw $t6, 0($t6)      # set the colour
+        add $t7, $t3, $t1   # address of the colour to set
+        sw $t6, 0($t7)      # set the colour
+            
+        addi $t4, $t4, 1
+        j set_gems_loop_start
+    set_gems_loop_end:
+    
+    jr $ra
+
+# sets the current gem colours to the values from the saved_gem_clrs list
+# uses temporary registers 0,1,3,4,5,6,7,8,9
+swap_gems_with_saved:
+    la $t0, saved_gem_clrs
+    la $t1, curr_gem_clrs
+    li $t4, 0
+    li $t5, 3
+    
+    set_gems_loop_start2:
+    beq $t4, $t5, set_gems_loop_end2
+     
+        sll $t3, $t4, 2     # offset is index*4
+        add $t6, $t3, $t0   # address of the saved colour to access
+        lw $t8, 0($t6)      # get the colour
+        add $t7, $t3, $t1   # address of the curr colour to access
+        lw $t9, 0($t7)      # get the colour
+        sw $t8, 0($t7)      # set the colours
+        sw $t9, 0($t6)
+            
+        addi $t4, $t4, 1
+        j set_gems_loop_start2
+    set_gems_loop_end2:
+    
+    jr $ra
+
+# sets the saved gem colours to the values from the curr_gem_clrs list
+# uses temporary registers 0,1,3,4,5,6,7
+set_saved_gems_from_curr:
+    la $t0, curr_gem_clrs
+    la $t1, saved_gem_clrs
+    li $t4, 0
+    li $t5, 3
+    
+    set_gems_loop_start3:
+    beq $t4, $t5, set_gems_loop_end3
+     
+        sll $t3, $t4, 2     # offset is index*4
+        add $t6, $t3, $t0   # address of the colour to get
+        lw $t6, 0($t6)      # set the colour
+        add $t7, $t3, $t1   # address of the colour to set
+        sw $t6, 0($t7)      # set the colour
+            
+        addi $t4, $t4, 1
+        j set_gems_loop_start3
+    set_gems_loop_end3:
+    
+    jr $ra
 
 ##  The draw_skydiver function
 ##  - Draws the current gem stack thing at the current location, with the precondition that it is valid location
@@ -533,8 +914,8 @@ generate_gems:
 #   also uses a0, a1, a2
 draw_skydiver:
     # save to stack
-    addi $sp, $sp, -4               # move the stack pointer to an empty location
-    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4           
+    sw $ra, 0($sp)            
     
     li $t4, 0   # i
     li $t5, 3   # i+3 (for the loop)
@@ -596,8 +977,150 @@ draw_skydiver:
         j draw_gems_loop_start
     draw_gems_loop_end:
         # recover from stack
-        lw $ra, 0($sp)                  # pop $ra from the stack
-        addi $sp, $sp, 4                # move the stack pointer to the top stack element
+        lw $ra, 0($sp)               
+        addi $sp, $sp, 4                
+        
+        jr $ra
+
+# draws the next skydiver in a set position
+draw_skydiver_jr:
+    # save to stack
+    addi $sp, $sp, -4           
+    sw $ra, 0($sp)            
+    
+    li $t4, 0   # i
+    li $t5, 3   # i+3 (for the loop)
+    
+    li $t6, 24
+    li $t7, 9
+    la $t8, next_gem_clrs
+    
+    # draw each gem
+    draw_gems_loop_start_jr:
+    beq $t4, $t5, draw_gems_loop_end_jr
+        sll $t1, $t4, 2     # offset is index*4
+        # draw gem
+        add $a0, $t6, $zero       # set X coordinate
+        add $a1, $t7, $zero        # set Y coordinate
+        
+        add $t2, $t8, $t1       # address of the colour to access (base address + offset)
+        lw $t9, 0($t2)          # load the colour
+        add $a2, $zero, $t9     # set colour
+        
+        addi $sp, $sp, -4
+        sw $t1, 0($sp)
+        addi $sp, $sp, -4
+        sw $t2, 0($sp)
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        addi $sp, $sp, -4
+        sw $t7, 0($sp)
+        addi $sp, $sp, -4
+        sw $t8, 0($sp)
+        addi $sp, $sp, -4
+        sw $t9, 0($sp)
+
+        jal draw_gem          # call the draw_gem function.
+
+        lw $t9, 0($sp)
+        addi $sp, $sp, 4
+        lw $t8, 0($sp)
+        addi $sp, $sp, 4
+        lw $t7, 0($sp)
+        addi $sp, $sp, 4
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        lw $t2, 0($sp)
+        addi $sp, $sp, 4
+        lw $t1, 0($sp)
+        addi $sp, $sp, 4
+        
+        addi $t4, $t4, 1
+        addi $t7, $t7, 1
+        j draw_gems_loop_start_jr
+    draw_gems_loop_end_jr:
+        # recover from stack
+        lw $ra, 0($sp)               
+        addi $sp, $sp, 4                
+        
+        jr $ra
+        
+# draws the saved skydiver in a set position
+draw_skydiver_sr:
+    # save to stack
+    addi $sp, $sp, -4           
+    sw $ra, 0($sp)            
+    
+    li $t4, 0   # i
+    li $t5, 3   # i+3 (for the loop)
+    
+    li $t6, 24
+    li $t7, 15
+    la $t8, saved_gem_clrs
+    
+    # draw each gem
+    draw_gems_loop_start_sr:
+    beq $t4, $t5, draw_gems_loop_end_sr
+        sll $t1, $t4, 2     # offset is index*4
+        # draw gem
+        add $a0, $t6, $zero       # set X coordinate
+        add $a1, $t7, $zero        # set Y coordinate
+        
+        add $t2, $t8, $t1       # address of the colour to access (base address + offset)
+        lw $t9, 0($t2)          # load the colour
+        add $a2, $zero, $t9     # set colour
+        
+        addi $sp, $sp, -4
+        sw $t1, 0($sp)
+        addi $sp, $sp, -4
+        sw $t2, 0($sp)
+        addi $sp, $sp, -4
+        sw $t4, 0($sp)
+        addi $sp, $sp, -4
+        sw $t5, 0($sp)
+        addi $sp, $sp, -4
+        sw $t6, 0($sp)
+        addi $sp, $sp, -4
+        sw $t7, 0($sp)
+        addi $sp, $sp, -4
+        sw $t8, 0($sp)
+        addi $sp, $sp, -4
+        sw $t9, 0($sp)
+
+        jal draw_gem          # call the draw_gem function.
+
+        lw $t9, 0($sp)
+        addi $sp, $sp, 4
+        lw $t8, 0($sp)
+        addi $sp, $sp, 4
+        lw $t7, 0($sp)
+        addi $sp, $sp, 4
+        lw $t6, 0($sp)
+        addi $sp, $sp, 4
+        lw $t5, 0($sp)
+        addi $sp, $sp, 4
+        lw $t4, 0($sp)
+        addi $sp, $sp, 4
+        lw $t2, 0($sp)
+        addi $sp, $sp, 4
+        lw $t1, 0($sp)
+        addi $sp, $sp, 4
+        
+        addi $t4, $t4, 1
+        addi $t7, $t7, 1
+        j draw_gems_loop_start_sr
+    draw_gems_loop_end_sr:
+        # recover from stack
+        lw $ra, 0($sp)               
+        addi $sp, $sp, 4                
         
         jr $ra
  
@@ -654,8 +1177,8 @@ save_stack:
 # temporary registers used: probably all of them
 draw_grid:
     # save to stack
-    addi $sp, $sp, -4               # move the stack pointer to an empty location
-    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4    
+    sw $ra, 0($sp)           
     
     li $t1, 0  # start x coord (at top left corner)
     li $t3, 6  # end x coord exclusive
@@ -681,16 +1204,16 @@ draw_grid:
             lw $a2, 0($t7)  #finally we can get the colour at the given x and y coordinates and store it in $a2
             
             # stack stuff
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t1, 0($sp)                  # push $t1 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t2, 0($sp)                  # push $t2 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t3, 0($sp)                  # push $t3 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t4, 0($sp)                  # push $t4 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t5, 0($sp)                  # push $t5 onto the stack
+            addi $sp, $sp, -4            
+            sw $t1, 0($sp)                  
+            addi $sp, $sp, -4              
+            sw $t2, 0($sp)                 
+            addi $sp, $sp, -4             
+            sw $t3, 0($sp)                 
+            addi $sp, $sp, -4             
+            sw $t4, 0($sp)             
+            addi $sp, $sp, -4           
+            sw $t5, 0($sp)                
             addi $sp, $sp, -4
             sw $t6, 0($sp)
             addi $sp, $sp, -4
@@ -733,16 +1256,16 @@ draw_grid:
             addi $sp, $sp, 4
             lw $t6, 0($sp)
             addi $sp, $sp, 4
-            lw $t5, 0($sp)                  # pop $t5 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t4, 0($sp)                  # pop $t4 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t3, 0($sp)                  # pop $t3 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t2, 0($sp)                  # pop $t2 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t1, 0($sp)                  # pop $t1 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t5, 0($sp)             
+            addi $sp, $sp, 4              
+            lw $t4, 0($sp)                
+            addi $sp, $sp, 4               
+            lw $t3, 0($sp)              
+            addi $sp, $sp, 4             
+            lw $t2, 0($sp)                 
+            addi $sp, $sp, 4               
+            lw $t1, 0($sp)               
+            addi $sp, $sp, 4            
             
             addi $t2, $t2, 1
             j draw_grid_loop_y_start
@@ -752,8 +1275,8 @@ draw_grid:
     draw_grid_loop_x_end:
     
     # recover from stack
-    lw $ra, 0($sp)                  # pop $ra from the stack
-    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    lw $ra, 0($sp)                
+    addi $sp, $sp, 4             
     
     jr $ra
 
@@ -788,6 +1311,7 @@ game_loop:
         beq $v1, 0x77, respond_to_w
         beq $v1, 0x73, respond_to_s
         beq $v1, 0x71, respond_to_q
+        beq $v1, 0x65, respond_to_e
         b end_key_input_handling    # if key is not one of the above, do nothing
         respond_to_a:   # move left
             lbu $t5, curr_x     # get current x, load it into t5
@@ -899,6 +1423,24 @@ game_loop:
             b end_key_input_handling
         respond_to_q:   # quit
             j exit
+        respond_to_e:   # save current stack to the saved stack, bring saved stack to be the current one. if none saved, get next stack
+            lbu $t0, stack_saved
+            beq $t0, 0, save_then_get_next
+                # else, swap with saved stack
+                jal swap_gems_with_saved
+                jal draw_skydiver
+                jal draw_skydiver_sr
+                b end_key_input_handling
+            save_then_get_next:
+                li $t0, 1
+                sb $t0, stack_saved
+                jal set_saved_gems_from_curr
+                jal set_curr_gems_from_next
+                jal generate_gems
+                jal draw_skydiver
+                jal draw_skydiver_jr
+                jal draw_skydiver_sr
+                b end_key_input_handling
     end_key_input_handling:
         lbu $a0, curr_x
         lbu $a1, curr_y
@@ -951,7 +1493,11 @@ game_loop:
         jal zap_gems
         
         # reset the skydiver
+        jal set_curr_gems_from_next
         jal generate_gems
+        # redraw the next skydiver
+        jal draw_skydiver_jr
+        
         #reset cur x and y
         li $t0, 2
         li $t1, 0
@@ -971,6 +1517,7 @@ game_loop:
        beq $t9, 0, draw_the_screen  # if hit list empty, skip to next step
            # else if the hit list is not empty
            jal draw_grid
+           jal draw_skydiver
            jal death_animation
            jal execute_gems
            jal mark_gems
@@ -990,6 +1537,7 @@ game_loop:
     j game_loop
 
 # check for and handle keyboard input
+# adapted from the keyboard.asm starter file
 # $v1 return value: 1 if key has been pressed, 0 otherwise
 is_key_pressed:
     lw $t1, ADDR_KBRD   # get address of keyboard input
@@ -998,6 +1546,7 @@ is_key_pressed:
     jr $ra
     
 # get the key that has been pressed
+# adapted from the keyboard.asm starter file
 # $v1 return value: the value of the key that has been pressed as a hex representation of its ascii code
 keyboard_input:
     lw $t1, ADDR_KBRD   # get address of keyboard input
@@ -1019,8 +1568,8 @@ shift_gems:
 # clear any rows, columns, or diagonals of three or more matching gems
 zap_gems:
     # save to stack
-    addi $sp, $sp, -4               # move the stack pointer to an empty location
-    sw $ra, 0($sp)                  # push $ra onto the stack
+    addi $sp, $sp, -4             
+    sw $ra, 0($sp)             
 
     # list of coordinates to check
     la $t0, sus_list_x
@@ -1039,22 +1588,22 @@ zap_gems:
         lb $t7, 0($t5)  # value at this part of the list (y coordinate thats sus)
         
         # i ran out of variables ig ill use the stack. keep $t6 and $t7 for x and y
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t1, 0($sp)                  # push $t1 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t2, 0($sp)                  # push $t2 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t3, 0($sp)                  # push $t3 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t4, 0($sp)                  # push $t4 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t5, 0($sp)                  # push $t5 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t8, 0($sp)                  # push $t8 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t9, 0($sp)                  # push $t9 onto the stack
-        addi $sp, $sp, -4               # move the stack pointer to an empty location
-        sw $t0, 0($sp)                  # push $t0 onto the stack
+        addi $sp, $sp, -4               
+        sw $t1, 0($sp)                  
+        addi $sp, $sp, -4        
+        sw $t2, 0($sp)                
+        addi $sp, $sp, -4             
+        sw $t3, 0($sp)                
+        addi $sp, $sp, -4              
+        sw $t4, 0($sp)                 
+        addi $sp, $sp, -4              
+        sw $t5, 0($sp)                 
+        addi $sp, $sp, -4              
+        sw $t8, 0($sp)             
+        addi $sp, $sp, -4          
+        sw $t9, 0($sp)             
+        addi $sp, $sp, -4          
+        sw $t0, 0($sp)             
         
         # atp $t6 is x, $t7 is y. i want to make $t1 colour
         la $t2, grid    # base address of colour grid
@@ -1123,26 +1672,26 @@ zap_gems:
             # finally, call the recursive check function, which takes the new x,new y, colour, i, and 1 as arguments and returns nothing
             # a0 is colour, a1 is i (direction), a2 is 1 (count)
             # first, save the temporary variables to the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t1, 0($sp)                  # push $t1 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t2, 0($sp)                  # push $s3 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t3, 0($sp)                  # push $t3 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t4, 0($sp)                  # push $t4 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t5, 0($sp)                  # push $t5 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t6, 0($sp)                  # push $t6 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t7, 0($sp)                  # push $t7 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t8, 0($sp)                  # push $t8 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t9, 0($sp)                  # push $t9 onto the stack
-            addi $sp, $sp, -4               # move the stack pointer to an empty location
-            sw $t0, 0($sp)                  # push $t0 onto the stack
+            addi $sp, $sp, -4               
+            sw $t1, 0($sp)                  
+            addi $sp, $sp, -4               
+            sw $t2, 0($sp)                  
+            addi $sp, $sp, -4               
+            sw $t3, 0($sp)                  
+            addi $sp, $sp, -4               
+            sw $t4, 0($sp)                  
+            addi $sp, $sp, -4               
+            sw $t5, 0($sp)                  
+            addi $sp, $sp, -4              
+            sw $t6, 0($sp)                 
+            addi $sp, $sp, -4              
+            sw $t7, 0($sp)                 
+            addi $sp, $sp, -4              
+            sw $t8, 0($sp)                 
+            addi $sp, $sp, -4              
+            sw $t9, 0($sp)                 
+            addi $sp, $sp, -4              
+            sw $t0, 0($sp)                 
             
             add $a0, $t1, $zero
             add $a1, $s3, $zero
@@ -1159,16 +1708,16 @@ zap_gems:
             skipReset:
             jal check
             
-            lw $t0, 0($sp)                  # pop $t0 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t9, 0($sp)                  # pop $t9 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t8, 0($sp)                  # pop $t8 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t7, 0($sp)                  # pop $t7 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
-            lw $t6, 0($sp)                  # pop $t6 from the stack
-            addi $sp, $sp, 4                # move the stack pointer to the top stack element
+            lw $t0, 0($sp)                
+            addi $sp, $sp, 4              
+            lw $t9, 0($sp)                
+            addi $sp, $sp, 4              
+            lw $t8, 0($sp)                
+            addi $sp, $sp, 4              
+            lw $t7, 0($sp)                
+            addi $sp, $sp, 4              
+            lw $t6, 0($sp)                
+            addi $sp, $sp, 4              
             lw $t5, 0($sp)                  # pop $t5 from the stack
             addi $sp, $sp, 4                # move the stack pointer to the top stack element
             lw $t4, 0($sp)                  # pop $t4 from the stack
@@ -1504,6 +2053,7 @@ mark_gems:
                 sw $t9, 0($sp)
        
                 jal draw_grid
+                jal draw_skydiver
                 jal sleeeep
                 
                 lw $t9, 0($sp)
@@ -1873,10 +2423,53 @@ drop_gems:
                 addi $t2, $t2, 1
                 j drop_gems_loop_y_start
         drop_gems_loop_y_end:
-        
+            addi $sp, $sp, -4
+            sw $t0, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t1, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t2, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t3, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t4, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t5, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t6, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t7, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t8, 0($sp) 
+            addi $sp, $sp, -4
+            sw $t9, 0($sp) 
+           
             jal draw_grid
+            jal draw_skydiver
     	    jal sleeeep
+    	    
+    	    lw $t9, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t8, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t7, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t6, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t5, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t4, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t3, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t2, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t1, 0($sp)
+            addi $sp, $sp, 4 
+            lw $t0, 0($sp)
+            addi $sp, $sp, 4 
             j drop_gems_while_loop_start
+            
     drop_gems_while_loop_end:
     # recover from stack
     lw $ra, 0($sp)                  # pop $ra from the stack
