@@ -98,7 +98,10 @@ stack_saved: # 1 if there is a saved stack of gems, 0 if not
     .byte 0x00
 speed_variable:
     .byte 0x0a
-
+speed_decrease_counter:
+    .byte 0x0a
+speed_counter:
+  .byte 0x0a
 ##############################################################################
 # Code
 ##############################################################################
@@ -117,7 +120,13 @@ main:
     jal draw_background
     jal draw_skydiver_jr
     
-    li $t0, 0
+    li $t1, 13
+    sb $t1, speed_variable
+    
+    li $t1, 0
+    sb $t1, speed_decrease_counter
+    sb $t1, speed_counter
+    
     jal game_loop
     
     j exit
@@ -1342,14 +1351,28 @@ clear_keyboard_inputs:
     
 # game loop. uses $t0 as a counter for triggering making the stack fall
 game_loop:
+    lbu $t2, speed_decrease_counter #counter variable for decreasing speed var (increase speed), goes from 0 to 67
+    lbu $t0, speed_counter #counter var from 0 to speed var, every time reached drop gem by 1
     lbu $t1, speed_variable
+    addi $t2, $t2, 1
+    sb $t2, speed_decrease_counter
+    bne $t2, 3, dontincreasepls # increase t2 and every 67 loops, increase speed by 1
+        #increase speed
+        li $t2, 0
+        beq $t1, 0, skipDecrease
+            addi $t1, $t1, -1
+            sb $t1, speed_variable  
+    skipDecrease:
+     li $v0, 1        # syscall: print integer
+    move $a0, $t1    # load value of $t1 into argument register
+    syscall
+    dontincreasepls:
+    
     beq $t0, $t1, trigger_gravity
     b deny_gravity
     trigger_gravity:
         li $t0, 0
-        
-        addi $sp, $sp, -4            
-        sw $t0, 0($sp)
+        sb $t0, speed_counter
         
         lbu $t5, curr_y     # get current y
         
@@ -1366,15 +1389,14 @@ game_loop:
         beq $t5, $t6, allow67
         b check_for_player_input
         
-        allow67:
+        allow67: #allow going down thanks almond
         sb $t4, curr_y
         b check_for_player_input
         
     deny_gravity:
         addi $t0, $t0, 1
-        
-        addi $sp, $sp, -4            
-        sw $t0, 0($sp)
+        sb $t0, speed_counter
+   
     
     check_for_player_input:
     # 1a. Check if key has been pressed
@@ -1614,8 +1636,6 @@ game_loop:
 	
 	jal sleep
     # 5. Go back to Step 1
-    lw $t0, 0($sp)               
-    addi $sp, $sp, 4
     j game_loop
 
 # check for and handle keyboard input
