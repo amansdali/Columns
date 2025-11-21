@@ -96,6 +96,8 @@ curr_y: # the y position of the player in the 6x13 grid
     .byte 0x00
 stack_saved: # 1 if there is a saved stack of gems, 0 if not
     .byte 0x00
+speed_variable:
+    .byte 0x0a
 
 ##############################################################################
 # Code
@@ -114,6 +116,8 @@ main:
     jal generate_gems
     jal draw_background
     jal draw_skydiver_jr
+    
+    li $t0, 0
     jal game_loop
     
     j exit
@@ -1282,8 +1286,6 @@ draw_grid:
 
 # clears the keyboard input list thing so it only triggers one key input per loop
 clear_keyboard_inputs:
-    addi $sp, $sp, -4
-    sw $ra, 0($sp)
     
     clear_keyboard_loop_start:
         lw $t1, ADDR_KBRD   # get address of keyboard input
@@ -1295,9 +1297,43 @@ clear_keyboard_inputs:
     clear_keyboard_loop_end:
     jr $ra
     
-# game loop. needs no initial register values.
+# game loop. uses $t0 as a counter for triggering making the stack fall
 game_loop:
-
+    lbu $t1, speed_variable
+    beq $t0, $t1, trigger_gravity
+    b deny_gravity
+    trigger_gravity:
+        li $t0, 0
+        
+        addi $sp, $sp, -4            
+        sw $t0, 0($sp)
+        
+        lbu $t5, curr_y     # get current y
+        
+        addi $t6, $t5, 3   # temporary check value
+        addi $t4, $t5, 1   # displacement value 
+        add $a1, $zero, $t6
+        lbu $a0, curr_x
+        addi $a0, $a0, 13
+        addi $a1, $a1, 9
+        jal convert_pixel
+        add $t6, $zero, $v0 # return value of converted pixel
+        lw $t5, 0($t6)      # get colour from memory
+        lw $t6, BLACK   
+        beq $t5, $t6, allow67
+        b check_for_player_input
+        
+        allow67:
+        sb $t4, curr_y
+        b check_for_player_input
+        
+    deny_gravity:
+        addi $t0, $t0, 1
+        
+        addi $sp, $sp, -4            
+        sw $t0, 0($sp)
+    
+    check_for_player_input:
     # 1a. Check if key has been pressed
     jal is_key_pressed  # sets v1 to 1 if there is keyboard input
     beq $v1, 1, if_keyboard_input
@@ -1532,8 +1568,11 @@ game_loop:
 	jal draw_skydiver
 	jal clear_keyboard_inputs
 	# 4. Sleep
+	
 	jal sleep
     # 5. Go back to Step 1
+    lw $t0, 0($sp)               
+    addi $sp, $sp, 4
     j game_loop
 
 # check for and handle keyboard input
