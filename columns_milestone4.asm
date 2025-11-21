@@ -139,6 +139,7 @@ convert_pixel:
     add $v0, $t1, $zero
     jr $ra
 
+
 ##  The draw_pixel function
 ##  - Draws a pixel from a given X and Y coordinate 
 #
@@ -471,8 +472,12 @@ draw_background:
         sw $t5, 0($sp)
         addi $sp, $sp, -4
         sw $t6, 0($sp)
+ 
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 4( $t1 )        # paint the pixel
         
-        jal draw_pixel          # call the draw pixel_function.
         lw $t6, 0($sp)
         addi $sp, $sp, 4
         lw $t5, 0($sp)
@@ -483,7 +488,12 @@ draw_background:
         sw $t5, 0($sp)
         addi $sp, $sp, -4
         sw $t6, 0($sp)
-        jal draw_pixel          # call the draw pixel_function.
+        
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        addi $t1, $t1, 256
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 4( $t1 )        # paint the pixel
         
         # recover from stack
         lw $t6, 0($sp)
@@ -541,7 +551,14 @@ draw_background:
         addi $sp, $sp, -4
         sw $t6, 0($sp)
         
-        jal draw_pixel          # call the draw pixel_function.
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        addi $t1, $t1, -256
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 256( $t1 )        # paint the pixel
+        sw $a2, 512( $t1 )        # paint the pixel
+        sw $a2, 768( $t1 )        # paint the pixel
+        
         lw $t6, 0($sp)
         addi $sp, $sp, 4
         lw $t5, 0($sp)
@@ -556,7 +573,14 @@ draw_background:
         sw $t5, 0($sp)
         addi $sp, $sp, -4
         sw $t6, 0($sp)
-        jal draw_pixel          # call the draw pixel_function.
+        
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        addi $t1, $t1, -252
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 256( $t1 )        # paint the pixel
+        sw $a2, 512( $t1 )        # paint the pixel
+        sw $a2, 768( $t1 )        # paint the pixel
         
         # recover from stack
         lw $t6, 0($sp)
@@ -621,7 +645,10 @@ draw_background:
         addi $sp, $sp, -4
         sw $t6, 0($sp)
         
-        jal draw_pixel          # call the draw pixel_function.
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 4( $t1 )        # paint the pixel
         lw $t6, 0($sp)
         addi $sp, $sp, 4
         lw $t5, 0($sp)
@@ -632,7 +659,11 @@ draw_background:
         sw $t5, 0($sp)
         addi $sp, $sp, -4
         sw $t6, 0($sp)
-        jal draw_pixel          # call the draw pixel_function.
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        addi $t1, $t1, 256
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 4( $t1 )        # paint the pixel
         
         # recover from stack
         lw $t6, 0($sp)
@@ -690,7 +721,13 @@ draw_background:
         addi $sp, $sp, -4
         sw $t6, 0($sp)
         
-        jal draw_pixel          # call the draw pixel_function.
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        addi $t1, $t1, -256
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 256( $t1 )        # paint the pixel
+        sw $a2, 512( $t1 )        # paint the pixel
+        sw $a2, 768( $t1 )        # paint the pixel
         lw $t6, 0($sp)
         addi $sp, $sp, 4
         lw $t5, 0($sp)
@@ -705,7 +742,13 @@ draw_background:
         sw $t5, 0($sp)
         addi $sp, $sp, -4
         sw $t6, 0($sp)
-        jal draw_pixel          # call the draw pixel_function.
+        jal convert_pixel
+        add $t1, $zero, $v0 # return value
+        addi $t1, $t1, -252
+        sw $a2, 0( $t1 )        # paint the pixel
+        sw $a2, 256( $t1 )        # paint the pixel
+        sw $a2, 512( $t1 )        # paint the pixel
+        sw $a2, 768( $t1 )        # paint the pixel
         
         # recover from stack
         lw $t6, 0($sp)
