@@ -103,6 +103,10 @@ speed_decrease_counter:
     .byte 0x0a
 speed_counter:
   .byte 0x0a
+game_over_flag:
+  .byte 0
+letter_written:
+  .byte 0
 ##############################################################################
 # Code
 ##############################################################################
@@ -970,6 +974,9 @@ set_saved_gems_from_curr:
 #   temp registers used are t1, t2, t4, t5, t6, t7, t8, t9
 #   also uses a0, a1, a2
 draw_skydiver:
+        la $t9, game_over_flag
+            lbu $t9, 0($t9)
+            beq $t9, 1, nomorediving67    
     # save to stack
     addi $sp, $sp, -4           
     sw $ra, 0($sp)            
@@ -1037,10 +1044,14 @@ draw_skydiver:
         lw $ra, 0($sp)               
         addi $sp, $sp, 4                
         
+        nomorediving67:
         jr $ra
 
 # draws the next skydiver in a set position
 draw_skydiver_jr:
+        la $t9, game_over_flag
+            lbu $t9, 0($t9)
+            beq $t9, 1, nomorediving69    
     # save to stack
     addi $sp, $sp, -4           
     sw $ra, 0($sp)            
@@ -1106,8 +1117,9 @@ draw_skydiver_jr:
     draw_gems_loop_end_jr:
         # recover from stack
         lw $ra, 0($sp)               
-        addi $sp, $sp, 4                
+        addi $sp, $sp, 4    
         
+        nomorediving69:
         jr $ra
         
 # draws the saved skydiver in a set position
@@ -1198,8 +1210,9 @@ save_stack:
     beq $t3, 0, leave    # if current y is 0 (skydiver stops at the top), end game
     b SaveLoop
     leave:
-    li $v1, 1
-    j exit
+        li $v1, 1
+        sb $v1, game_over_flag #SIX SEVEN
+        j gameOverSign
     SaveLoop: 
         beq $t4, 3, endsaveloop # iterate 3 times
         add $t9, $t3, $t4 #initial y + i = current y
@@ -1393,6 +1406,25 @@ clear_keyboard_inputs:
     
 # game loop. uses $t0 as a counter for triggering making the stack fall
 game_loop:
+ la $t9, game_over_flag
+            lbu $t9, 0($t9)
+            bne $t9, 1, gamenotovers  
+            # game is over just detemrine how over it is just like my life
+             la $t8, letter_written # to jump to the correct letter 
+             lbu $t9, 0($t8)
+            addi $t9, $t9, 1
+            sb $t9, letter_written
+            beq $t9, 1, location1
+            beq $t9, 2, location2
+            beq $t9, 3, location3
+            beq $t9, 4, location4
+            beq $t9, 5, location5
+            beq $t9, 6, location6
+            beq $t9, 7, location7
+            beq $t9, 8, location8
+            beq $t9, 14, location9
+
+    gamenotovers:
     lbu $t2, speed_decrease_counter # counter variable for decreasing speed var (increase speed), goes from 0 to 3 (or custom value in the below if condition)
     lbu $t0, speed_counter # counter var from 0 to speed var, every time reached drop gem by 1
     lbu $t1, speed_variable 
@@ -1486,7 +1518,6 @@ game_loop:
             add $t6, $zero, $v0 # return value of converted pixel, store it in t6
             lw $t5, 0($t6)      # get colour from memory. store the colour of the pixel at address t6 into t5
             lw $t6, BLACK   # set t6 to be black
-            
             bne $t5, $t6 end_key_input_handling # if the colour at the target x,y coordinate (the pixel to the left of the current one) is not black, prevent user 
                                                 # from moving left
             #test if collide with x-1, y-1
@@ -1691,11 +1722,17 @@ game_loop:
 	# 3. Draw the screen
 	draw_the_screen:
 	jal draw_grid
-	jal draw_skydiver
-	jal clear_keyboard_inputs
+	la $t9, game_over_flag
+            lbu $t9, 0($t9)
+            beq $t9, 1, nomorediving23
+            jal draw_skydiver
+            	jal clear_keyboard_inputs
+    	    nomorediving23:
+
 	# 4. Sleep
 	
 	jal sleep
+	skiploop:
     # 5. Go back to Step 1
     j game_loop
 
@@ -2608,7 +2645,11 @@ drop_gems:
             sw $t9, 0($sp) 
            
             jal draw_grid
+            la $t9, game_over_flag
+            lbu $t9, 0($t9)
+            beq $t9, 1, nomorediving
             jal draw_skydiver
+    	    nomorediving:
     	    jal sleeeep
     	    
     	    lw $t9, 0($sp)
@@ -2811,8 +2852,7 @@ sleeeeeep:
     syscall
     jr $ra
             
-# Terminate program gracefully
-exit:
+gameOverSign:
 
     li $v0, 10              # terminate the program gracefully
                                 #                           ↑ yo wtf says this mf thinks he in lit sybau
@@ -2832,6 +2872,9 @@ exit:
     sw $t0, 0($t6)
     sw $t0, 0($t7)
  
+    jal clear_line
+    
+    location1:
     beq $v1, 0, skipgameover
     #draw game over sequence
     li $a3, 0xfc03d3 # colou :)
@@ -2871,6 +2914,8 @@ exit:
     li $a1, 2 #ycor
     jal drawGameover1pixel
     
+    jal clear_line
+    location2:
     # letter A
     li $a0, 8 #xcor
     li $a1, 2 #ycor
@@ -2914,6 +2959,8 @@ exit:
     li $a1, 4 #ycor
     jal drawGameover1pixel
     
+    jal clear_line
+    location3:
     #Letter "m"
     li $a0, 15 #xcor
     li $a1, 2 #ycor
@@ -2955,7 +3002,9 @@ exit:
     li $a1, 4 #ycor
     jal drawGameover1pixel
     
+    jal clear_line
     #letter e
+    location4:
     li $a0, 20 #xcor
     li $a1, 2 #ycor
     jal drawGameover1pixel
@@ -2990,8 +3039,9 @@ exit:
     li $a0, 21 #xcor
     li $a1, 4 #ycor
     jal drawGameover1pixel
-    jal slep
     
+    jal clear_line
+    location5:
     #lets do some spinnin
     li $t4, 0 # loop var
     SPINNIN: 
@@ -3033,7 +3083,9 @@ exit:
         j SPINNIN
     donespin:
     
+    jal clear_line
     #draw v
+    location6:
     li $a2, 1
     li $a0, 21 #xcor
     li $a1, 7 #ycor
@@ -3060,7 +3112,9 @@ exit:
     li $a1, 7 #ycor
     jal drawGameover1pixel
     
+    jal clear_line
     #dra we
+    location7:
     li $a2, 0
     li $a0, 26 #xcor
     li $a1, 8 #ycor
@@ -3098,7 +3152,9 @@ exit:
     jal drawGameover1pixel
     jal slep
     
+    jal clear_line
     #draw R
+    location8:
     li $a2, 1
     li $a2, 0
     li $a0, 30 #xcor
@@ -3134,6 +3190,12 @@ exit:
     li $a1, 10 #ycor
     jal drawGameover1pixel
     jal slep
+    
+    
+# Terminate program gracefully
+location9:
+    exit:
+    
     
     skipgameover:
     li $v0, 10 
@@ -3233,3 +3295,81 @@ convert_pixel1x1:
     endAddY:
     jr $ra
     
+    # clear all gems on field when game over. calls this function 13 times, clearing one line each time. 
+    clear_line:
+    li $a0, 0 #x
+    li $a1, 12 #y
+    la $t6, death_note_x #memory addresses
+    la $t7, death_note_y
+    la $t8, death_note_length
+    loopLine:
+    beq $a0, 6, doneLine
+     
+     addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)   
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $a0, 0($sp)   
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $a1, 0($sp)   
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t6, 0($sp)   
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t7, 0($sp)   
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $t8, 0($sp)   
+    
+
+            addi $a0, $a0, 13   # convert to absolute coordinates
+            addi, $a1, $a1, 9
+            jal convert_pixel # call the convert pixel function which puts the address of the pixal at the target x,y coordinates into v0
+            add $t9, $zero, $v0 # return value of converted pixel, store it in t9
+            lw $t5, 0($t9)      # get colour from memory. store the colour of the pixel at address t6 into t5
+            lw $t9, BLACK   # set t6 to be black
+            bne $t5, $t9, allowAdd#if current pixel isnt black, add to death note
+            b dontallowAdd
+            
+            allowAdd:
+            addi $a0, $a0, -13
+            addi $a1, $a1, -9
+             # load current length
+            lbu $t0, 0($t8)      
+           
+            add $t1, $t6, $t0        # move index to first empty space of x list
+            sb  $a0, 0($t1)          # store x
+        
+            add $t1, $t7, $t0        # move index to first empty space of y list
+            sb  $a1, 0($t1)          # store y
+            
+            addi $t0, $t0, 1
+            sb   $t0, 0($t8)         # death_note_length = new length
+            
+    dontallowAdd:
+    lw $t8, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4     
+    lw $t7, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4     
+    lw $t6, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4     
+    lw $a1, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4     
+    lw $a0, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4     
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4   
+    
+    addi $a0, $a0, 1
+    j loopLine
+    
+    doneLine:
+    loopdelete:
+   lbu $t9, death_note_length
+   beq $t9, 0, draw_the_screen  # if hit list empty, skip to next step
+       # else if the hit list is not empty
+       jal draw_grid
+       jal death_animation
+       jal execute_gems
+       jal drop_gems
+       addi $t9, $t9, -1
+       j loopdelete
+   
+    jr $ra
