@@ -1195,8 +1195,11 @@ save_stack:
 
     lbu $t2, curr_x # current x
     lbu $t3, curr_y #LABUBU???? current y
-    beq $t3, 0, respond_to_q    # if current y is 0 (skydiver stops at the top), end game
-
+    beq $t3, 0, leave    # if current y is 0 (skydiver stops at the top), end game
+    b SaveLoop
+    leave:
+    li $v1, 1
+    j exit
     SaveLoop: 
         beq $t4, 3, endsaveloop # iterate 3 times
         add $t9, $t3, $t4 #initial y + i = current y
@@ -1580,6 +1583,7 @@ game_loop:
             sb $t4, curr_y
             b end_key_input_handling
         respond_to_q:   # quit
+        li $v1, 0 #signal
             j exit
         respond_to_e:   # save current stack to the saved stack, bring saved stack to be the current one. if none saved, get next stack
             lbu $t0, stack_saved
@@ -2762,7 +2766,32 @@ rand_num:
     li $a1, 7               # maximum value, exclusive
     syscall                 # value is in a0
     jr $ra
+#honk mimimi
+slp:
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $a0, 0($sp)   
+    
+    li $v0, 32              # command for sleep
+    li $a0, 10              # number of milliseconds (1000 = 1 second)
+    syscall
 
+    lw $a0, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4     
+    
+    jr $ra
+
+slep:
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $a0, 0($sp)   
+    
+    li $v0, 32              # command for sleep
+    li $a0, 67              # number of milliseconds (1000 = 1 second)
+    syscall
+
+    lw $a0, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4     
+    
+    jr $ra
 # Sleep
 sleep:
     li $v0, 32              # command for sleep
@@ -2784,16 +2813,17 @@ sleeeeeep:
             
 # Terminate program gracefully
 exit:
+
     li $v0, 10              # terminate the program gracefully
                                 #                           ↑ yo wtf says this mf thinks he in lit sybau
     lw $t0, GRAY
     li $t1, 0x10008440
     li $t2, 0x10008740
-    li $t3, 0x10008450
-    li $t4, 0x10008550
-    li $t5, 0x10008650
-    li $t6, 0x10008754
-    li $t7, 0x10008354
+    li $t3, 0x1000844c
+    li $t4, 0x1000854c
+    li $t5, 0x1000864c
+    li $t6, 0x10008750
+    li $t7, 0x10008350
     sw $t0, 0($t1)
     sw $t0, 0($t2)
     sw $t0, 0($t3)
@@ -2801,4 +2831,405 @@ exit:
     sw $t0, 0($t5)
     sw $t0, 0($t6)
     sw $t0, 0($t7)
+ 
+    beq $v1, 0, skipgameover
+    #draw game over sequence
+    li $a3, 0xfc03d3 # colou :)
+    #letterG
+    li $a2, 1 # yes pause pls uwu
+    li $a0, 6 #xcor
+    li $a1, 0 #ycor
+    jal drawGameover1pixel
+    li $a0, 5 #xcor
+    li $a1, 0 #ycor
+    jal drawGameover1pixel
+    li $a0, 4 #xcor
+    li $a1, 0 #ycor
+    jal drawGameover1pixel
+    li $a0, 3 #xcor
+    li $a1, 1 #ycor
+    jal drawGameover1pixel
+    li $a0, 3 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a0, 3 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    li $a0, 4 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    li $a0, 5 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    li $a0, 6 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    li $a0, 6 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a0, 5 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    
+    # letter A
+    li $a0, 8 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a2, 0 #no more auto pause let her cook
+    li $a0, 9 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a0, 8 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    li $a0, 8 #xcor
+    li $a1, 1 #ycor
+    jal slep
+    jal drawGameover1pixel
+    li $a0, 8 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    li $a0, 10 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a0, 9 #xcor
+    li $a1, 0 #ycor
+    jal slep
+    jal drawGameover1pixel
+    li $a0, 11 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a0, 10 #xcor
+    li $a1, 0 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 11 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    li $a0, 11 #xcor
+    li $a1, 1 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 11 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    
+    #Letter "m"
+    li $a0, 15 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 15 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 15 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    li $a0, 14 #xcor
+    li $a1, 1 #ycor
+    jal drawGameover1pixel
+    li $a0, 16 #xcor
+    li $a1, 1 #ycor
+    jal drawGameover1pixel
+        jal slep
+            jal slep    jal slep    jal slep    jal slep #ZZZZZZZ
+    li $a0, 13 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a0, 17 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 17 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    li $a0, 13 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 17 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    li $a0, 13 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    
+    #letter e
+    li $a0, 20 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 19 #xcor
+    li $a1, 2 #ycor
+    jal drawGameover1pixel
+    li $a0, 19 #xcor
+    li $a1, 3 #ycor
+    jal drawGameover1pixel
+    li $a0, 19 #xcor
+    li $a1, 1 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 19 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    li $a0, 19 #xcor
+    li $a1, 0 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 20 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    li $a0, 20 #xcor
+    li $a1, 0 #ycor
+    jal drawGameover1pixel
+    li $a0, 21 #xcor
+    li $a1, 0 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 21 #xcor
+    li $a1, 4 #ycor
+    jal drawGameover1pixel
+    jal slep
+    
+    #lets do some spinnin
+    li $t4, 0 # loop var
+    SPINNIN: 
+        beq $t4, 8, donespin
+        jal updatecolour
+        li $a0, 18 #xcor
+        li $a1, 7 #ycor
+        jal drawGameover1pixel
+                jal slp
+        li $a0, 17 #xcor
+        li $a1, 7 #ycor
+        jal drawGameover1pixel
+                jal slp
+        li $a0, 16 #xcor
+        li $a1, 8 #ycor
+        jal drawGameover1pixel
+                jal slp
+        li $a0, 16 #xcor
+        li $a1, 9 #ycor
+        jal drawGameover1pixel
+                jal slp
+        li $a0, 17 #xcor
+        li $a1, 10 #ycor
+        jal drawGameover1pixel
+                jal slp
+        li $a0, 18 #xcor
+        li $a1, 10 #ycor
+        jal drawGameover1pixel
+                jal slp
+        li $a0, 19 #xcor
+        li $a1, 9 #ycor
+        jal drawGameover1pixel
+                jal slp
+        li $a0, 19 #xcor
+        li $a1, 8 #ycor
+        jal drawGameover1pixel
+        addi $t4, $t4, 1
+        jal slp
+        j SPINNIN
+    donespin:
+    
+    #draw v
+    li $a2, 1
+    li $a0, 21 #xcor
+    li $a1, 7 #ycor
+    jal drawGameover1pixel
+    li $a0, 21 #xcor
+    li $a1, 8 #ycor
+    jal drawGameover1pixel
+    li $a0, 21 #xcor
+    li $a1, 9 #ycor
+    jal drawGameover1pixel
+    li $a0, 22 #xcor
+    li $a1, 10 #ycor
+    jal drawGameover1pixel
+    li $a0, 23 #xcor
+    li $a1, 9 #ycor
+    jal drawGameover1pixel
+    li $a0, 23 #xcor
+    li $a1, 9 #ycor
+    jal drawGameover1pixel
+    li $a0, 23 #xcor
+    li $a1, 8 #ycor
+    jal drawGameover1pixel
+    li $a0, 23 #xcor
+    li $a1, 7 #ycor
+    jal drawGameover1pixel
+    
+    #dra we
+    li $a2, 0
+    li $a0, 26 #xcor
+    li $a1, 8 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 25 #xcor
+    li $a1, 8 #ycor
+    jal drawGameover1pixel
+    li $a0, 25 #xcor
+    li $a1, 9 #ycor
+    jal drawGameover1pixel
+    li $a0, 25 #xcor
+    li $a1, 7 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 25 #xcor
+    li $a1, 6 #ycor
+    jal drawGameover1pixel
+    li $a0, 25 #xcor
+    li $a1, 10 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 26 #xcor
+    li $a1, 6 #ycor
+    jal drawGameover1pixel
+    li $a0, 26 #xcor
+    li $a1, 10 #ycor
+    jal drawGameover1pixel
+    li $a0, 27 #xcor
+    li $a1, 6 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 27 #xcor
+    li $a1, 10 #ycor
+    jal drawGameover1pixel
+    jal slep
+    
+    #draw R
+    li $a2, 1
+    li $a2, 0
+    li $a0, 30 #xcor
+    li $a1, 8 #ycor
+    jal drawGameover1pixel
+    li $a0, 31 #xcor
+    li $a1, 7 #ycor
+    jal drawGameover1pixel
+    li $a0, 30 #xcor
+    li $a1, 6 #ycor
+    jal drawGameover1pixel
+    li $a0, 29 #xcor
+    li $a1, 6 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 29 #xcor
+    li $a1, 7 #ycor
+    jal drawGameover1pixel
+    li $a0, 29 #xcor
+    li $a1, 8 #ycor
+    jal drawGameover1pixel
+    li $a0, 29 #xcor
+    li $a1, 9 #ycor
+    jal drawGameover1pixel
+    li $a0, 29 #xcor
+    li $a1, 10 #ycor
+    jal drawGameover1pixel
+    li $a0, 31 #xcor
+    li $a1, 9 #ycor
+    jal drawGameover1pixel
+    jal slep
+    li $a0, 31 #xcor
+    li $a1, 10 #ycor
+    jal drawGameover1pixel
+    jal slep
+    
+    skipgameover:
+    li $v0, 10 
     syscall
+#spinnin
+#updates a2 colour depending on t4
+updatecolour:
+    li $t5, 0
+    beq $t4, $t5, loop1
+    li $t5, 1
+    beq $t4, $t5, loop2
+    li $t5, 2
+    beq $t4, $t5, loop3
+    li $t5, 3
+    beq $t4, $t5, loop4
+    li $t5, 4
+    beq $t4, $t5, loop5
+    li $t5, 5
+    beq $t4, $t5, loop6
+    li $t5, 6
+    beq $t4, $t5, loop7
+    li $t5, 7
+    beq $t4, $t5, loop8
+    
+    loop1:
+        li $a3, 0xf02816
+        j enddddd 
+    loop2:
+        li $a3, 0xcf6c0a
+        j enddddd 
+    loop3:
+        li $a3, 0xe0da12
+        j enddddd 
+    loop4:
+        li $a3, 0x49e61e
+        j enddddd 
+    loop5:
+     li $a3, 0x18e9f0
+        j enddddd 
+    loop6:
+     li $a3, 0x0446c2
+        j enddddd 
+    loop7:
+     li $a3, 0x620dbd
+        j enddddd 
+    loop8:
+     li $a3, 0xfc03d3
+        j enddddd 
+    enddddd:
+    jr $ra
+# function to more easily draw pixels for the game over animation
+# reference pixel (relative 0,0) is 0x10008350 (the top pixel of the sad face mouth. coordinates given in:
+# a0: x coordinate relative to 0x10008350
+# a1: y coordinate relative to 0x10008350
+# a2: pause or not (1 = pause, 0 = not)
+# a3: colou :)
+drawGameover1pixel:
+    addi $sp, $sp, -4               # move the stack pointer to an empty location
+    sw $ra, 0($sp)   
+    
+    jal convert_pixel1x1
+    
+    sw $a3, 0($v0)  
+    
+    beq $a2, 0, skippasue
+    jal slep
+    li $v0, 32              # command for sleep
+    li $a0, 20              # number of milliseconds (1000 = 1 second)
+    syscall
+    
+    skippasue:
+    lw $ra, 0($sp)                  # pop $ra from the stack
+    addi $sp, $sp, 4                # move the stack pointer to the top stack element
+    jr $ra 
+# convert coordinate relative to 0x10008350 to memory address 
+# a0: x coordinate relative to 0x10008350
+# a1: y coordinate relative to 0x10008350
+# v0: address My name is Walter Hartwell White. I live at 308 Negra Arroyo Lane, Albuquerque, New Mexico, 87104. This is my confession. If you're watching this tape, I'm probably dead- murdered by my brother-in-law, Hank Schrader. Hank has been building a meth empire for over a year now, and using me as his chemist. 
+convert_pixel1x1:
+   # sll $a0, $a0, 2
+   # sll $a1, $a0, 9
+    
+    li $t0, 0 # loop variable
+    li $v0, 0x10008350 #final address variable
+    addXloop:
+        beq $t0, $a0, endAddX
+        addi $v0, $v0, 4
+        addi $t0, $t0, 1 
+        j addXloop
+    endAddX:
+    li $t0, 0
+    addYloop:
+        beq $t0, $a1, endAddY
+        addi $v0, $v0, 256
+        addi $t0, $t0, 1
+        j addYloop
+    endAddY:
+    jr $ra
+    
