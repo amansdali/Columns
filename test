@@ -1,0 +1,44 @@
+draw_gem:
+    la $t9, game_over_flag #check if game is over to stop drawing new gems
+    lbu $t9, 0($t9)
+    beq $a1, 12, keepdrawin # we sitll need to draw gems at y=12 even if game over to do the flashy thing
+    beq $t9, 1, noMoreGemsgrrr # if y ≠12, and t9 is 1, means gbame over and someones trying to draw the new top gem STOP ITTT    
+    
+  keepdrawin:
+    # save to stack
+    addi $sp, $sp, -4        
+    sw $ra, 0($sp)              
+    
+    jal convert_pixel
+    add $t1, $zero, $v0 # return value
+    
+    # store lightened version of the colour in v1
+    addi $sp, $sp, -4
+    sw $t1, 0($sp)
+    jal lighten_colour
+    lw $t1, 0($sp)
+    addi $sp, $sp, 4
+    
+    sw $v1, 0( $t1 )        # paint the pixel the lightened colour
+    
+    addi $t1, $t1, 4        # add 4 horizontal offset
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
+    
+    # store darkened version in v1
+    addi $sp, $sp, -4
+    sw $t1, 0($sp)
+    jal darken_colour
+    lw $t1, 0($sp)
+    addi $sp, $sp, 4
+    addi $t1, $t1, 256      # add 256 vertical offset
+    sw $v1, 0( $t1 )        # paint the pixel the darkened colour
+    
+    addi $t1, $t1, -4       # add -4 horizontal offset
+    sw $a2, 0( $t1 )        # paint the pixel the normal colour
+    
+
+    # recover from stack
+    lw $ra, 0($sp)                  
+    addi $sp, $sp, 4     
+        noMoreGemsgrrr:
+    jr $ra                  # return to the calling program.
