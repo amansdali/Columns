@@ -163,7 +163,6 @@ convert_pixel:
 # temp registers used: $t0, $t1, $t2, $t3
 # also uses $v0
 draw_pixel:
-
     # save to stack
     addi $sp, $sp, -4
     sw $ra, 0($sp)
@@ -894,7 +893,6 @@ generate_gems:
         # recover from stack
         lw $ra, 0($sp)             
         addi $sp, $sp, 4           
-        
         jr $ra
 
 # sets the current gem colours to the values from the next_gem_clrs list
@@ -917,7 +915,6 @@ set_curr_gems_from_next:
         addi $t4, $t4, 1
         j set_gems_loop_start
     set_gems_loop_end:
-    
     jr $ra
 
 # sets the current gem colours to the values from the saved_gem_clrs list
@@ -1035,7 +1032,7 @@ draw_skydiver:
         addi $sp, $sp, 4
         lw $t1, 0($sp)
         addi $sp, $sp, 4
-        
+    
         addi $t4, $t4, 1
         addi $t7, $t7, 1
         j draw_gems_loop_start
@@ -1190,7 +1187,6 @@ draw_skydiver_sr:
         # recover from stack
         lw $ra, 0($sp)               
         addi $sp, $sp, 4                
-        
         jr $ra
  
 # saves the current skydiver to the memory grid (precondition that the skydiver has stopped due to landing on something)
@@ -1237,8 +1233,7 @@ save_stack:
         addi $t4, $t4, 1         # i++
         j SaveLoop
         
-        endsaveloop:
-        
+        endsaveloop:   
      # restore caller's $ra and return
     lw   $ra, 0($sp)
     addi $sp, $sp, 4
@@ -1388,7 +1383,6 @@ draw_grid:
     # recover from stack
     lw $ra, 0($sp)                
     addi $sp, $sp, 4             
-    
     jr $ra
 
 # clears the keyboard input list thing so it only triggers one key input per loop
@@ -1422,8 +1416,10 @@ game_loop:
             beq $t9, 6, location6
             beq $t9, 7, location7
             beq $t9, 8, location8
-            beq $t9, 14, location9
-
+            beq $t9, 9, location9
+            beq $t9, 10, location10
+            beq $t9, 11, location11
+            beq $t9, 12, location12
     gamenotovers:
     lbu $t2, speed_decrease_counter # counter variable for decreasing speed var (increase speed), goes from 0 to 3 (or custom value in the below if condition)
     lbu $t0, speed_counter # counter var from 0 to speed var, every time reached drop gem by 1
@@ -1488,7 +1484,6 @@ game_loop:
     deny_gravity:
         addi $t0, $t0, 1
         sb $t0, speed_counter
-   
     
     check_for_player_input:
     # 1a. Check if key has been pressed
@@ -1698,7 +1693,6 @@ game_loop:
         sb $t1, curr_y
         li $t0, 0
         li $t1, 0
-        
         b update_tile_states
         
 	skydiver_airborne:
@@ -1728,11 +1722,8 @@ game_loop:
             jal draw_skydiver
             	jal clear_keyboard_inputs
     	    nomorediving23:
-
 	# 4. Sleep
-	
 	jal sleep
-	skiploop:
     # 5. Go back to Step 1
     j game_loop
 
@@ -3150,7 +3141,6 @@ gameOverSign:
     li $a0, 27 #xcor
     li $a1, 10 #ycor
     jal drawGameover1pixel
-    jal slep
     
     jal clear_line
     #draw R
@@ -3190,13 +3180,15 @@ gameOverSign:
     li $a1, 10 #ycor
     jal drawGameover1pixel
     jal slep
-    
-    
+    location9:
+        jal clear_line
+    location10:
+        jal clear_line
+    location11:
+        jal clear_line
+    location12:
 # Terminate program gracefully
-location9:
     exit:
-    
-    
     skipgameover:
     li $v0, 10 
     syscall
@@ -3317,7 +3309,6 @@ convert_pixel1x1:
     sw $t7, 0($sp)   
     addi $sp, $sp, -4               # move the stack pointer to an empty location
     sw $t8, 0($sp)   
-    
 
             addi $a0, $a0, 13   # convert to absolute coordinates
             addi, $a1, $a1, 9
@@ -3373,3 +3364,4 @@ convert_pixel1x1:
        j loopdelete
    
     jr $ra
+    # line 3367 🫱🫲
